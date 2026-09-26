@@ -7,12 +7,35 @@
 <meta name="description" content="Split a password across printable tags so that any few of them rebuild it: Reed–Solomon erasure coding and Shamir's secret sharing, on paper.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cg fill='%236ee7a0'%3E%3Crect x='12' y='14' width='16' height='16' rx='2'/%3E%3Crect x='36' y='14' width='16' height='16' rx='2'/%3E%3Crect x='24' y='36' width='16' height='16' rx='2'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="../lab.css">
+<style>
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 14px 10px; font-family: var(--mono); font-size: 12.5px; }
+  .ctl .lbl { color: #6d7d90; }
+  .ctl button { font: inherit; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ctl button:hover { border-color: #4a5d73; }
+  .ctl button:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
+  .ctl button[disabled] { opacity: .35; cursor: default; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; margin-left: -1px; padding: 7px 11px; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .seg button.on { background: #1f3a2c; border-color: var(--sig); color: var(--sig); position: relative; }
+  .plot { border-top: 1px solid var(--bezel-edge); border-bottom: 1px solid var(--bezel-edge); line-height: 0; }
+  .plot canvas { width: 100%; display: block; touch-action: none; cursor: crosshair; }
+  .ros { display: grid; grid-template-columns: 1fr 1fr 2.4fr; font-family: var(--mono); }
+  .ro { padding: 10px 14px 12px; border-right: 1px solid var(--bezel-edge); }
+  .ro:last-child { border-right: 0; }
+  .ro .k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #6d7d90; }
+  .ro .v { font-size: 14px; color: var(--scr-bright); margin-top: 2px; }
+  .ro .v.ok { color: var(--sig); } .ro .v.bad { color: var(--fault); } .ro .v.fog { color: var(--caution); }
+  .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
+  @media (max-width: 520px) { .ros { grid-template-columns: 1fr 1fr; } .ro.wide { grid-column: 1 / -1; border-top: 1px solid var(--bezel-edge); border-right: 0; } }
+</style>
 </head>
 <body>
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 10 <span class="status">blueprint</span></div>
+    <div class="eyebrow">Lab · 10 <span class="status building">building</span></div>
     <h1>Tear-Proof Secrets</h1>
     <div class="lede">
       <p>Type the Wi-Fi password, pick "5 tags, any 3", and print five small QR tags. Stick them on
@@ -28,7 +51,31 @@
 <main>
 <section>
   <div class="wrap">
-    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Split, print, and recover go here. See the build plan below.</div></div></div>
+    <h2>Why any <i>k</i> work, and <i>k</i> − 1 don't</h2>
+    <div class="prose"><p>The secret is the height where a curve crosses the left axis. Each tag is one point on
+    the curve. With <i>k</i> points there's exactly one curve of the right kind through them, so the crossing is
+    pinned down. With one point fewer, a curve fits through <em>every</em> possible crossing.</p></div>
+    <div class="panel" id="curve">
+      <div class="ctl">
+        <span class="lbl">any</span>
+        <span class="seg" id="c-k"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button></span>
+        <span class="lbl">of</span>
+        <span class="seg" id="c-n"><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">4</button><button data-v="5">5</button><button data-v="6">6</button></span>
+        <button id="c-new">new curve</button>
+        <button id="c-reset">restore tags</button>
+      </div>
+      <div class="plot"><canvas id="c-cv" aria-label="A curve through the secret and the tags. Drag the secret or a tag; tap a tag to tear it off."></canvas></div>
+      <div class="ros">
+        <div class="ro"><div class="k">secret</div><div class="v" id="c-sec">—</div></div>
+        <div class="ro"><div class="k">tags left</div><div class="v" id="c-left">—</div></div>
+        <div class="ro wide"><div class="k">what the tags say</div><div class="v" id="c-says">—</div></div>
+      </div>
+    </div>
+    <p class="hint">Drag the <b>◆ secret</b> up and down the left axis. <b>Tap</b> a tag to tear it off, and tap again
+    to put it back. <b>Drag</b> a tag to forge it: with exactly <i>k</i> tags a forgery goes unnoticed, but with spares
+    the honest tags outvote it. This plot uses ordinary numbers so the curves are easy to see. The
+    real tags use the same algebra over GF(256), bytes 0–255, where a single tag short of <i>k</i> leaves every byte
+    value exactly equally likely.</p>
   </div>
 </section>
 
@@ -61,9 +108,9 @@
   <div class="wrap">
     <h2>Build plan</h2>
     <ol class="plan">
-      <li><b>Math core.</b> GF(256) arithmetic (reuse from the main page's QR code), Lagrange interpolation, and share and recover for both modes, byte by byte.
+      <li class="done"><b>Math core.</b> GF(256) arithmetic (reuse from the main page's QR code), Lagrange interpolation, and share and recover for both modes, byte by byte.
         <ul><li>Round-trip tests for every k-subset of n ≤ 8. In secret mode, check that the k − 1 share distribution doesn't depend on the secret.</li></ul></li>
-      <li><b>Visual explainer.</b> An interactive plot over the real numbers (for intuition): drag points, watch the unique curve through k of them, and see that k − 1 points fit infinitely many curves through every possible secret.</li>
+      <li class="done"><b>Visual explainer.</b> An interactive plot over the real numbers (for intuition): drag points, watch the unique curve through k of them, and see that k − 1 points fit infinitely many curves through every possible secret.</li>
       <li><b>Split and print.</b> Text in, n/k chooser, tags out: QR (reuse the encoder, generalized beyond version 3), a base32 text form with a checksum, and a print stylesheet that lays tags out for cutting.</li>
       <li><b>Recover.</b> Paste or type tag codes, with duplicate and wrong-set detection (tags carry a short set ID). Then camera scanning via <code>BarcodeDetector</code> where the browser supports it, and typed codes elsewhere.</li>
       <li><b>Write-up.</b> Backup vs secret mode tradeoffs, why this is the basis for key backup in hardware wallets (SLIP-39) and for erasure coding in storage systems, and what it doesn't protect against (a thief who finds k tags).</li>
@@ -94,5 +141,266 @@
 </section>
 </main>
 <footer><div class="wrap">Lab · 10 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/tolerance">source</a></div></footer>
+<script>
+"use strict";
+/* ================================================================
+   Math core: GF(256), Lagrange interpolation, and both ways to split.
+   Same field as the QR exhibit (primitive polynomial 0x11d), so a tag's
+   bytes are the same kind of symbol a QR code's Reed–Solomon works on.
+   In GF(2^8), adding and subtracting are both XOR.
+   ================================================================ */
+const TP = (() => {
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; }
+  for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => (a && b) ? EXP[LOG[a] + LOG[b]] : 0;
+  const div = (a, b) => { if (!b) throw new Error('divide by zero in GF(256)'); return a ? EXP[(LOG[a] + 255 - LOG[b]) % 255] : 0; };
+
+  /* p(x) with coefficients low → high */
+  function evalPoly(c, x) { let y = 0; for (let i = c.length - 1; i >= 0; i--) y = mul(y, x) ^ c[i]; return y; }
+
+  /* the polynomial through the k points (xs, ys), as k coefficients low → high */
+  function interpolate(xs, ys) {
+    const k = xs.length, out = new Uint8Array(k);
+    for (let j = 0; j < k; j++) {
+      // basis L_j(x) = Π_{m≠j} (x − x_m) / (x_j − x_m)
+      let basis = new Uint8Array([1]), denom = 1;
+      for (let m = 0; m < k; m++) if (m !== j) {
+        const nb = new Uint8Array(basis.length + 1);
+        for (let i = 0; i < basis.length; i++) { nb[i + 1] ^= basis[i]; nb[i] ^= mul(basis[i], xs[m]); }
+        basis = nb; denom = mul(denom, xs[j] ^ xs[m]);
+      }
+      const f = div(ys[j], denom);
+      for (let i = 0; i < k; i++) out[i] ^= mul(basis[i], f);
+    }
+    return out;
+  }
+  /* just p(0), which is all secret mode needs: Σ y_j Π_{m≠j} x_m / (x_m − x_j) */
+  function interpolateAt0(xs, ys) {
+    let s = 0;
+    for (let j = 0; j < xs.length; j++) {
+      let num = 1, den = 1;
+      for (let m = 0; m < xs.length; m++) if (m !== j) { num = mul(num, xs[m]); den = mul(den, xs[m] ^ xs[j]); }
+      s ^= mul(ys[j], div(num, den));
+    }
+    return s;
+  }
+
+  const cryptoRandom = len => crypto.getRandomValues(new Uint8Array(len));
+
+  /* Split `bytes` into n shares, any k of which rebuild it. Share i sits at x = i (1…n).
+     'backup': Reed–Solomon erasure code. Each run of k bytes is one polynomial's
+       coefficients, so a share is ⌈len/k⌉ bytes. Compact, but each share leaks.
+     'secret': Shamir. Each byte is p(0) of its own polynomial, whose other k − 1
+       coefficients are random. A share is len bytes, and k − 1 of them say nothing. */
+  function split(bytes, n, k, mode, rand = cryptoRandom) {
+    if (!(k >= 1 && k <= n && n <= 255)) throw new Error('need 1 ≤ k ≤ n ≤ 255');
+    const len = bytes.length;
+    const groups = mode === 'backup' ? Math.ceil(len / k) : len;
+    const shares = Array.from({ length: n }, (_, i) => ({ x: i + 1, data: new Uint8Array(groups) }));
+    for (let g = 0; g < groups; g++) {
+      let coeffs;
+      if (mode === 'backup') { coeffs = new Uint8Array(k); coeffs.set(bytes.subarray(g * k, g * k + k)); }
+      else { coeffs = new Uint8Array(k); coeffs[0] = bytes[g]; coeffs.set(rand(k - 1), 1); }
+      for (const sh of shares) sh.data[g] = evalPoly(coeffs, sh.x);
+    }
+    return shares;
+  }
+  /* Rebuild from any k shares (extra shares are ignored). `len` is the original length. */
+  function combine(shares, k, mode, len) {
+    const use = shares.slice(0, k), xs = use.map(s => s.x);
+    if (new Set(xs).size !== k) throw new Error('duplicate share');
+    const out = new Uint8Array(len);
+    if (mode === 'backup') {
+      for (let g = 0; g * k < len; g++) {
+        const c = interpolate(xs, use.map(s => s.data[g]));
+        out.set(c.subarray(0, Math.min(k, len - g * k)), g * k);
+      }
+    } else {
+      for (let g = 0; g < len; g++) out[g] = interpolateAt0(xs, use.map(s => s.data[g]));
+    }
+    return out;
+  }
+  return { mul, div, evalPoly, interpolate, interpolateAt0, split, combine };
+})();
+</script>
+<script src="../core.js"></script>
+<script>
+/* ================================================================
+   Visual explainer: the same idea over the real numbers.
+   The secret is p(0); tag i is (i, p(i)); p has degree k − 1.
+   ================================================================ */
+(() => {
+  const cv = document.getElementById('c-cv');
+  const X0 = -0.45, Y0 = -1, Y1 = 11;
+  let k = 3, n = 5, secret = 4.2, shape = [], tags = [], lost = new Set(), G = null;
+  // p through (0, secret) and (i, shape[i-1]) for i = 1…k−1
+  const lag = (pts, x) => pts.reduce((s, [xj, yj], j) =>
+    s + yj * pts.reduce((pr, [xm], m) => m === j ? pr : pr * (x - xm) / (xj - xm), 1), 0);
+  const truePts = () => [[0, secret], ...shape.map((y, i) => [i + 1, y])];
+  function newShape() {
+    // random curves, retried until every tag lands on the plot
+    for (let t = 0; t < 400; t++) {
+      shape = Array.from({ length: k - 1 }, () => 1 + Math.random() * 8);
+      const pts = truePts(), ys = [...Array(n).keys()].map(i => lag(pts, i + 1));
+      if (ys.every(y => y > 0.4 && y < 9.6)) break;
+    }
+    restore();
+  }
+  function restore() { const pts = truePts(); tags = [...Array(n).keys()].map(i => ({ x: i + 1, y: lag(pts, i + 1), y0: lag(pts, i + 1) })); lost.clear(); draw(); }
+
+  function geom() {
+    const { ctx, w, h } = fit(cv, 0.56, 290, 440);
+    const L = 40, R = 16, T = 16, B = 28, X1 = n + 0.5;
+    const sx = x => L + (x - X0) / (X1 - X0) * (w - L - R), sy = y => T + (Y1 - y) / (Y1 - Y0) * (h - T - B);
+    const ix = px => X0 + (px - L) / (w - L - R) * (X1 - X0), iy = py => Y1 - (py - T) / (h - T - B) * (Y1 - Y0);
+    G = { ctx, w, h, sx, sy, ix, iy, X1, L, T, B };
+  }
+  function curve(ctx, pts, col, width, alpha = 1, dash = null) {
+    const { sx, sy, X1 } = G;
+    ctx.save(); ctx.beginPath(); ctx.rect(G.L, G.T, G.w - G.L, G.h - G.T - G.B); ctx.clip();
+    ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = width; if (dash) ctx.setLineDash(dash);
+    ctx.beginPath();
+    for (let i = 0; i <= 240; i++) {
+      const x = X0 + (X1 - X0) * i / 240, y = Math.max(-50, Math.min(60, lag(pts, x)));
+      i ? ctx.lineTo(sx(x), sy(y)) : ctx.moveTo(sx(x), sy(y));
+    }
+    ctx.stroke(); ctx.restore();
+  }
+  function draw() {
+    if (!G) geom();
+    const { ctx, w, h, sx, sy, X1 } = G;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    // grid
+    ctx.font = font(10.5); ctx.textBaseline = 'middle';
+    for (let y = 0; y <= 10; y += 2) {
+      ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx(X0), sy(y) + .5); ctx.lineTo(w - 16, sy(y) + .5); ctx.stroke();
+      ctx.fillStyle = COL.text; ctx.textAlign = 'right'; ctx.fillText(y, G.L - 8, sy(y));
+    }
+    for (let x = 1; x <= n; x++) {
+      ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(sx(x) + .5, G.T); ctx.lineTo(sx(x) + .5, h - G.B); ctx.stroke();
+      ctx.fillStyle = COL.text; ctx.textAlign = 'center'; ctx.fillText('tag ' + x, sx(x), h - 12);
+    }
+    // the secret axis
+    ctx.strokeStyle = COL.grid2; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(0), G.T); ctx.lineTo(sx(0), h - G.B); ctx.stroke();
+    ctx.fillStyle = COL.caution; ctx.textAlign = 'center'; ctx.fillText('secret', sx(0), h - 12);
+
+    const kept = tags.filter(t => !lost.has(t.x));
+    const says = document.getElementById('c-says');
+    let found = null;
+    if (kept.length >= k) {
+      // try every k of the kept tags and keep the curve most tags agree with; with spare
+      // tags this outvotes a forgery (Reed–Solomon error correction in miniature)
+      const fits = pts => kept.filter(t => Math.abs(lag(pts, t.x) - t.y) < 0.06);
+      let best = null, bestN = -1, ties = 0;
+      const pick = (start, acc) => {
+        if (acc.length === k) {
+          const pts = acc.map(t => [t.x, t.y]), m = fits(pts).length;
+          if (m > bestN) { bestN = m; best = pts; ties = 0; }
+          else if (m === bestN && Math.abs(lag(pts, 0) - lag(best, 0)) > 0.02) ties++;
+          return;
+        }
+        for (let i = start; i < kept.length; i++) pick(i + 1, acc.concat(kept[i]));
+      };
+      pick(0, []);
+      found = lag(best, 0);
+      const misfit = kept.filter(t => Math.abs(lag(best, t.x) - t.y) >= 0.06);
+      curve(ctx, best, ties ? COL.fault : COL.sig, 2.4);
+      if (!ties) for (const t of misfit) { ctx.strokeStyle = COL.fault; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(t.x), sy(t.y), 15, 0, TAU); ctx.stroke(); }
+      const right = Math.abs(found - secret) < 0.02;
+      says.className = 'v ' + (ties ? 'bad' : misfit.length ? 'fog' : right ? 'ok' : 'bad');
+      says.textContent = ties
+        ? `the tags disagree, and there's no telling which ${misfit.length > 1 ? 'ones are' : 'one is'} forged`
+        : misfit.length
+          ? `${bestN} tags agree on ${found.toFixed(2)}; ${misfit.length === 1 ? 'the circled tag is' : 'the circled tags are'} outvoted`
+          : right ? `exactly one curve fits: the secret is ${found.toFixed(2)}` : `one curve fits, but it says ${found.toFixed(2)}: a forged tag can't be caught without a spare`;
+    } else {
+      // too few: a fan of equally good curves, one through each possible secret
+      const need = k - kept.length;             // points missing to pin the curve, counting the secret
+      const free = [...Array(n).keys()].map(i => i + 1).filter(x => !kept.some(t => t.x === x)).slice(0, need - 1);
+      for (let i = 0; i <= 14; i++) {
+        const t = Y0 + 0.2 + (Y1 - Y0 - 0.4) * i / 14;
+        const extra = free.map((x, j) => [x, 5 + 3.2 * Math.sin(i * 1.9 + j * 2.4 + x)]);
+        curve(ctx, [[0, t], ...kept.map(q => [q.x, q.y]), ...extra], COL.caution, 1.2, 0.55);
+        ctx.fillStyle = COL.caution; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(sx(0), sy(t), 2.6, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      says.className = 'v fog';
+      says.textContent = kept.length
+        ? `${kept.length} tag${kept.length > 1 ? 's' : ''}, ${need} short: a curve fits every secret`
+        : 'no tags: anything goes';
+    }
+    // the real secret, drawn hollow so you can compare
+    const ys = sy(secret), xs0 = sx(0);
+    ctx.save(); ctx.translate(xs0, ys); ctx.rotate(Math.PI / 4);
+    ctx.fillStyle = COL.bg; ctx.fillRect(-7, -7, 14, 14);
+    ctx.strokeStyle = COL.caution; ctx.lineWidth = 2; ctx.strokeRect(-7, -7, 14, 14);
+    if (found !== null && Math.abs(found - secret) < 0.02) { ctx.fillStyle = COL.sig; ctx.fillRect(-4, -4, 8, 8); }
+    ctx.restore();
+    if (found !== null && Math.abs(found - secret) >= 0.02 && found > Y0 && found < Y1) {
+      ctx.fillStyle = COL.fault; ctx.beginPath(); ctx.arc(xs0, sy(found), 5, 0, TAU); ctx.fill();
+    }
+    // tags
+    for (const t of tags) {
+      const x = sx(t.x), y = sy(t.y), gone = lost.has(t.x), forged = Math.abs(t.y - t.y0) > 0.02;
+      ctx.lineWidth = 2;
+      if (gone) {
+        ctx.setLineDash([3, 3]); ctx.strokeStyle = '#46546a'; ctx.beginPath(); ctx.arc(x, sy(t.y0), 10, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#46546a'; ctx.textAlign = 'center'; ctx.font = font(10); ctx.fillText('torn', x, sy(t.y0) + (t.y0 > 1.5 ? 22 : -22));
+        continue;
+      }
+      ctx.fillStyle = forged ? '#3a1d1a' : '#123024'; ctx.strokeStyle = forged ? COL.fault : COL.sig;
+      ctx.beginPath(); ctx.arc(x, y, 10, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = COL.bright; ctx.font = font(11, 500); ctx.textAlign = 'center'; ctx.fillText(t.x, x, y + .5);
+    }
+    document.getElementById('c-sec').textContent = secret.toFixed(2);
+    const left = document.getElementById('c-left');
+    left.textContent = `${kept.length} of ${n} · need ${k}`; left.className = 'v ' + (kept.length >= k ? 'ok' : 'fog');
+  }
+
+  /* pointer: drag the secret or a tag; tap a tag to tear it off */
+  let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    const p = ptr(cv, e), { sx, sy } = G;
+    if (Math.hypot(p.x - sx(0), p.y - sy(secret)) < 18) drag = { what: 'secret' };
+    else {
+      let best = null, bd = 22;
+      for (const t of tags) { const d = Math.hypot(p.x - sx(t.x), p.y - sy(lost.has(t.x) ? t.y0 : t.y)); if (d < bd) { bd = d; best = t; } }
+      if (best) drag = { what: 'tag', t: best, x0: p.x, y0: p.y, moved: false };
+    }
+    if (drag) { cv.setPointerCapture(e.pointerId); e.preventDefault(); }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = ptr(cv, e), y = clamp(G.iy(p.y), Y0 + 0.2, Y1 - 0.2);
+    if (drag.what === 'secret') {
+      const forged = tags.map(t => t.y - t.y0);
+      secret = clamp(y, 0, 10);
+      const pts = truePts(); tags.forEach((t, i) => { t.y0 = lag(pts, t.x); t.y = t.y0 + forged[i]; });
+      draw();
+    } else if (!lost.has(drag.t.x)) {
+      if (!drag.moved && Math.hypot(p.x - drag.x0, p.y - drag.y0) < 6) return;
+      drag.moved = true; drag.t.y = y; draw();
+    }
+  });
+  const end = () => {
+    if (drag && drag.what === 'tag' && !drag.moved) { const x = drag.t.x; lost.has(x) ? lost.delete(x) : lost.add(x); draw(); }
+    drag = null;
+  };
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', () => { drag = null; });
+
+  /* controls */
+  const segK = document.getElementById('c-k'), segN = document.getElementById('c-n');
+  function sync() {
+    segK.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === k));
+    segN.querySelectorAll('button').forEach(b => { b.classList.toggle('on', +b.dataset.v === n); b.disabled = +b.dataset.v < k; });
+  }
+  segK.onclick = e => { const b = e.target.closest('button'); if (!b) return; k = +b.dataset.v; n = Math.max(n, k); sync(); geom(); newShape(); };
+  segN.onclick = e => { const b = e.target.closest('button'); if (!b || b.disabled) return; n = +b.dataset.v; sync(); geom(); newShape(); };
+  document.getElementById('c-new').onclick = newShape;
+  document.getElementById('c-reset').onclick = restore;
+  register(document.getElementById('curve'), { resize() { geom(); draw(); } });
+  sync(); geom(); newShape();
+})();
+</script>
 </body>
 </html>

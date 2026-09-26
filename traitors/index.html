@@ -12,7 +12,7 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 08 <span class="status">blueprint</span></div>
+    <div class="eyebrow">Lab · 08 <span class="status building">building</span></div>
     <h1>Traitors, Pass-the-Phone</h1>
     <div class="lede">
       <p>A party game for 3–7 players and one phone. You're generals around a besieged city. The
@@ -29,30 +29,33 @@
 <main>
 <section>
   <div class="wrap">
-    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Setup, secret roles, and the message rounds go here. See the build plan below.</div></div></div>
+    <div class="panel" id="game"><div class="stage" id="stage" aria-live="polite"></div></div>
+    <p class="prose" style="font-size:14px;margin-top:10px">Playable now with one relay round (OM(1)). Bots, two-round games, and signed orders are next in the build plan. Nothing leaves the phone. Names and the win tally are saved only in this browser.</p>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>How it will work</h2>
+    <h2>How it works</h2>
     <div class="prose">
-      <p><strong>Setup:</strong> player names (like Scatter), then how many traitors. The phone deals
-      roles in secret: each player takes the phone, taps to reveal their role, and passes it on.
-      One player is the commander, who may also be a traitor.</p>
-      <p><strong>Round 1:</strong> the commander privately sends each lieutenant an order. The phone
-      shows only the recipient's own inbox, so a traitor commander can tell different people
-      different things.</p>
-      <p><strong>Round 2 (the relay):</strong> each lieutenant tells every other lieutenant, in
-      private, what the commander told them. Traitors may relay anything. This is Lamport's
-      <em>Oral Messages</em> algorithm, OM(1).</p>
-      <p><strong>Decide:</strong> each loyal lieutenant takes the majority of everything they heard.
-      The phone then reveals the full message graph: who said what to whom, with every lie in red,
-      and whether the loyal generals agreed.</p>
-      <p><strong>The twist:</strong> after a few games, the phone offers <em>signed orders</em>, where
-      a forged relay is detectable. With signatures, agreement works with any number of traitors.
-      That's the difference between plain voting and what blockchains and flight computers
-      actually do.</p>
+      <p><strong>Setup:</strong> enter names in seating order and pick one or two traitors. The phone
+      secretly chooses the commander and the traitors. The commander may be a traitor too, and
+      traitors are told who their fellow traitor is.</p>
+      <p><strong>One private turn each.</strong> The commander goes first. A loyal commander picks one
+      order for everyone, and a traitor commander can send each lieutenant a different one.
+      Then each lieutenant, in turn, sees what the commander told them and passes it on to every
+      other lieutenant. Loyal lieutenants relay honestly and automatically. Traitors can claim
+      anything, and something different to each person. This is Lamport's <em>Oral Messages</em>
+      algorithm with one round of relays, OM(1).</p>
+      <p><strong>Nobody chooses their action.</strong> Each loyal lieutenant follows the majority of
+      the orders they heard (ties mean retreat). That's the point: the question isn't whether you
+      can out-think the traitor, but whether <em>any</em> fixed rule can survive them.</p>
+      <p><strong>The reveal:</strong> every message drawn as an arrow, lies marked, each loyal
+      lieutenant's inbox, and the verdict. The phone keeps a running tally of loyal wins by
+      player count, so the 3-player vs 4-player difference shows up over a few games.</p>
+      <p><strong>Coming next:</strong> signed orders, where a forged relay is detectable. With
+      signatures, agreement works with any number of traitors. That's the difference between plain
+      voting and what flight computers and blockchains actually do.</p>
     </div>
   </div>
 </section>
@@ -61,11 +64,11 @@
   <div class="wrap">
     <h2>Build plan</h2>
     <ol class="plan">
-      <li><b>Protocol engine, no UI.</b> OM(m) as a pure function: inputs are roles, the commander's orders, and each traitor's relay choices; outputs are every loyal decision and whether they agree.
+      <li class="done"><b>Protocol engine, no UI.</b> OM(m) as a pure function: inputs are roles, the commander's orders, and each traitor's relay choices; outputs are every loyal decision and whether they agree.
         <ul><li>Unit-check the classic results: n = 3, m = 1 can fail; n = 4, m = 1 always succeeds; n = 7, m = 2 always succeeds.</li></ul></li>
-      <li><b>Hot-seat flow for OM(1).</b> Setup screen, secret role reveal with a "pass to NAME" screen between every private step so nobody sees someone else's inbox, commander round, relay round, decisions.
+      <li class="done"><b>Hot-seat flow for OM(1).</b> Setup screen, secret role reveal with a "pass to NAME" screen between every private step so nobody sees someone else's inbox, commander round, relay round, decisions.
         <ul><li>Traitors choose what to send with two big buttons. Loyal players just confirm the relay.</li></ul></li>
-      <li><b>The reveal.</b> An animated message graph with players around a circle, arrows for every message, lies in red, and a verdict. A tally across games of "loyal wins at n = 3 vs n = 4".</li>
+      <li class="done"><b>The reveal.</b> A message graph with players around a circle (tap a player to see only their inbox), arrows for every message, lies in red, and a verdict. A tally across games of "loyal wins at n = 3 vs n = 4".</li>
       <li><b>Bot players.</b> Fill empty seats with bots (honest or traitor) so two people can play a 4-player game, and a solo "watch it run" mode that loops random games at 3 vs 4 players.</li>
       <li><b>Signed messages, SM(m).</b> Orders carry a seal that traitors can't forge, only withhold. Show agreement surviving 1 traitor out of 3.</li>
       <li><b>Write-up.</b> Why 3f + 1 (the indistinguishability argument drawn as two scenarios the loyal lieutenant can't tell apart), fly-by-wire and the Boeing 777's triple-triple architecture, and why Bitcoin swapped identity for proof-of-work.</li>
@@ -97,5 +100,402 @@
 </section>
 </main>
 <footer><div class="wrap">Lab · 08 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/tolerance">source</a></div></footer>
+<style>
+  /* game-specific UI; page chrome comes from ../lab.css */
+  .stage { padding: 22px 18px 20px; min-height: 360px; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; color: var(--scr-text); }
+  .stage h4 { font-family: var(--serif); font-weight: 500; font-size: 26px; color: var(--scr-bright); margin-bottom: 6px; line-height: 1.2; }
+  .stage .sub { color: #6d7d90; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 14px; }
+  .stage p + p { margin-top: 10px; }
+  .stage b { color: var(--scr-bright); font-weight: 500; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+  .stage button {
+    font: inherit; font-size: 13px; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a;
+    border-radius: 8px; padding: 9px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+  .stage button:hover { border-color: #4a5d73; }
+  .stage button:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
+  .stage button.primary { background: #1f3a2c; border-color: var(--sig); color: var(--sig); padding: 12px 20px; font-size: 14px; }
+  .stage button.big { flex: 1 1 140px; padding: 18px 12px; font-size: 16px; letter-spacing: .06em; }
+  .stage button[disabled] { opacity: .4; cursor: default; }
+  .stage input[type=text] {
+    font: inherit; font-size: 14px; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a;
+    border-radius: 6px; padding: 7px 10px; flex: 1 1 140px; min-width: 0;
+  }
+  .stage input[type=text]:focus { outline: none; border-color: var(--sig); }
+  .players { display: grid; gap: 8px; margin-top: 12px; max-width: 460px; }
+  .players .p { display: flex; gap: 8px; align-items: center; }
+  .players .p span { width: 22px; color: #6d7d90; }
+  .seg2 { display: inline-flex; }
+  .seg2 button { border-radius: 0; margin-left: -1px; }
+  .seg2 button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg2 button:last-child { border-radius: 0 8px 8px 0; }
+  .seg2 button.on { background: #1f3a2c; border-color: var(--sig); color: var(--sig); position: relative; }
+  .theory { margin-top: 16px; padding: 10px 12px; border: 1px solid var(--bezel-edge); border-radius: 8px; font-size: 12.5px; }
+  .role { font-family: var(--serif); font-size: 34px; line-height: 1.1; margin: 4px 0 10px; }
+  .role.loyal { color: var(--sig); } .role.traitor { color: var(--fault); }
+  .msg { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--bezel-edge); max-width: 460px; }
+  .order { display: inline-block; min-width: 86px; text-align: center; padding: 3px 8px; border-radius: 6px; font-weight: 500; letter-spacing: .08em; }
+  .order.A { color: #0b0f14; background: var(--caution); } .order.R { color: #0b0f14; background: var(--ir); }
+  .toggle { min-width: 110px; }
+  .toggle.A { background: #3a3220 !important; border-color: var(--caution) !important; color: var(--caution) !important; }
+  .toggle.R { background: #182c3a !important; border-color: var(--ir) !important; color: var(--ir) !important; }
+  .verdict { font-family: var(--serif); font-size: 28px; line-height: 1.2; margin: 2px 0 8px; }
+  .verdict.win { color: var(--sig); } .verdict.lose { color: var(--fault); }
+  .graph { margin: 14px -18px 0; border-top: 1px solid var(--bezel-edge); border-bottom: 1px solid var(--bezel-edge); line-height: 0; }
+  .graph canvas { width: 100%; display: block; touch-action: manipulation; }
+  .legend { font-size: 11.5px; color: #6d7d90; margin-top: 8px; }
+  table.inbox { border-collapse: collapse; margin-top: 12px; font-size: 12.5px; width: 100%; max-width: 560px; }
+  table.inbox th, table.inbox td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--bezel-edge); vertical-align: top; }
+  table.inbox th { color: #6d7d90; font-weight: 400; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+  .lie { color: var(--fault); }
+  .tally { margin-top: 14px; font-size: 12px; color: #6d7d90; }
+  .tally b { color: var(--scr-bright); }
+</style>
+<script>
+"use strict";
+/* ================================================================
+   Oral Messages OM(m) — Lamport, Shostak & Pease, 1982
+   Pure function, checked exhaustively against the known results
+   (n=3,m=1 fails; n=4,5,7 with m=1 and one traitor never fail;
+   n=7,m=2 with two traitors never fails; n=6,m=2 does).
+   ================================================================ */
+const ATTACK = 'A', RETREAT = 'R';
+function majority(vals) {
+  let a = 0, r = 0;
+  for (const v of vals) v === ATTACK ? a++ : r++;
+  return a > r ? ATTACK : RETREAT;     // ties fall back to the default, RETREAT
+}
+function runOM(m, n, commander, traitors, order, traitorSend) {
+  const log = [];
+  const send = (path, from, to, v) => {
+    const isT = traitors.has(from);
+    const sent = isT ? traitorSend(from, to, path, v) : v;
+    log.push({ path: path.slice(), round: path.length, from, to, value: sent, heard: v, traitor: isT, lie: isT && sent !== v });
+    return sent;
+  };
+  function om(m, cmd, lts, v, path) {
+    const recv = {};
+    for (const l of lts) recv[l] = send(path, cmd, l, v);
+    if (m === 0) return recv;
+    const sub = {};
+    for (const i of lts) sub[i] = om(m - 1, i, lts.filter(x => x !== i), recv[i], path.concat(i));
+    const dec = {};
+    for (const j of lts) dec[j] = majority([recv[j], ...lts.filter(i => i !== j).map(i => sub[i][j])]);
+    return dec;
+  }
+  const lts = [...Array(n).keys()].filter(i => i !== commander);
+  const dec = om(m, commander, lts, order, [commander]);
+  const loyal = lts.filter(i => !traitors.has(i));
+  const decisions = {};
+  for (const l of loyal) decisions[l] = dec[l];
+  const agree = new Set(loyal.map(l => decisions[l])).size <= 1;
+  const followed = traitors.has(commander) || loyal.every(l => decisions[l] === order);
+  return { log, decisions, loyal, agree, followed, win: agree && followed };
+}
+
+/* ================================================================
+   Hot-seat game: one private turn per player, then the reveal
+   ================================================================ */
+(() => {
+  const stage = document.getElementById('stage');
+  const WORD = { A: 'ATTACK', R: 'RETREAT' };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('traitors.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('traitors.' + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
+  };
+  let names = store.get('names', ['Player 1', 'Player 2', 'Player 3', 'Player 4']);
+  let nTraitors = 1;
+  let G = null;           // current game
+
+  function theoryLine(n, t) {
+    if (t === 1 && n >= 4) return `<b class="ok" style="color:var(--sig)">${n} players, 1 traitor:</b> one relay round is enough. The loyal generals will always agree, whatever the traitor does.`;
+    if (t === 1) return `<b style="color:var(--fault)">3 players, 1 traitor:</b> the loyal side can be beaten, and no rule the loyal players could follow would fix it. You need at least 4.`;
+    return `<b style="color:var(--caution)">${n} players, 2 traitors:</b> this game runs one relay round, which only handles one traitor. Two traitors need two rounds <i>and</i> at least 7 players.`;
+  }
+
+  /* ---------------- setup ---------------- */
+  function setup() {
+    const n = names.length;
+    if (nTraitors === 2 && n < 5) nTraitors = 1;
+    const tally = store.get('tally', {});
+    const tallyTxt = Object.keys(tally).sort().map(k => {
+      const [nn, tt] = k.split('-'); const r = tally[k];
+      return `<b>${nn}</b> players · ${tt} traitor${tt > 1 ? 's' : ''}: loyal won <b>${r.w}</b> of ${r.g}`;
+    }).join('<br>');
+    stage.innerHTML = `
+      <h4>Muster the generals</h4>
+      <div class="sub">3–7 players · one phone</div>
+      <p>Enter everyone's name in seating order. The phone picks a commander and the traitors in secret.</p>
+      <div class="players">${names.map((nm, i) => `
+        <div class="p"><span>${i + 1}</span><input type="text" data-i="${i}" value="${esc(nm)}" maxlength="14" aria-label="Player ${i + 1} name" spellcheck="false" autocomplete="off"></div>`).join('')}
+      </div>
+      <div class="row">
+        <button id="t-less" ${n <= 3 ? 'disabled' : ''} aria-label="Remove a player">− player</button>
+        <button id="t-more" ${n >= 7 ? 'disabled' : ''} aria-label="Add a player">+ player</button>
+        <span style="margin-left:8px">traitors</span>
+        <span class="seg2">
+          <button data-t="1" class="${nTraitors === 1 ? 'on' : ''}">1</button>
+          <button data-t="2" class="${nTraitors === 2 ? 'on' : ''}" ${n < 5 ? 'disabled title="needs 5+ players"' : ''}>2</button>
+        </span>
+      </div>
+      <div class="theory">${theoryLine(n, nTraitors)}</div>
+      <div class="row"><button class="primary" id="t-start">Deal secret roles →</button></div>
+      ${tallyTxt ? `<div class="tally">Games on this phone<br>${tallyTxt} <button id="t-clear" style="padding:2px 8px;font-size:11px;margin-left:6px">clear</button></div>` : ''}`;
+    stage.querySelectorAll('input[data-i]').forEach(inp => inp.addEventListener('input', () => {
+      names[+inp.dataset.i] = inp.value; store.set('names', names);
+    }));
+    stage.querySelector('#t-less').onclick = () => { names.pop(); store.set('names', names); setup(); };
+    stage.querySelector('#t-more').onclick = () => { names.push('Player ' + (names.length + 1)); store.set('names', names); setup(); };
+    stage.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { nTraitors = +b.dataset.t; setup(); });
+    stage.querySelector('#t-start').onclick = start;
+    const clr = stage.querySelector('#t-clear'); if (clr) clr.onclick = () => { store.set('tally', {}); setup(); };
+  }
+
+  function start() {
+    names = names.map((s, i) => s.trim() || 'Player ' + (i + 1));
+    // disambiguate duplicate names
+    const seen = {}; names = names.map(s => { seen[s] = (seen[s] || 0) + 1; return seen[s] > 1 ? `${s} ${seen[s]}` : s; });
+    store.set('names', names);
+    const n = names.length;
+    const commander = Math.floor(Math.random() * n);
+    const idx = [...Array(n).keys()];
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+    const traitors = new Set(idx.slice(0, nTraitors));
+    // commander goes first, then everyone else in seating order
+    const order = [commander, ...[...Array(n).keys()].map(k => (commander + 1 + k) % n).slice(0, n - 1)];
+    G = { n, commander, traitors, order, turn: 0, choice: {}, cmdOrder: null, got: {} };
+    pass();
+  }
+
+  /* ---------------- pass the phone ---------------- */
+  function pass() {
+    if (G.turn >= G.n) return passToTable();
+    const p = G.order[G.turn];
+    stage.innerHTML = `
+      <div class="sub">turn ${G.turn + 1} of ${G.n}</div>
+      <h4>Pass the phone to ${esc(names[p])}</h4>
+      <p>Everyone else, look away. ${esc(names[p])}: tap when only you can see the screen.</p>
+      <div class="row"><button class="primary big" id="t-me">I'm ${esc(names[p])}</button></div>`;
+    stage.querySelector('#t-me').onclick = () => (p === G.commander ? commanderTurn : lieutenantTurn)(p);
+  }
+  function roleBlock(p) {
+    const isT = G.traitors.has(p);
+    const mates = [...G.traitors].filter(q => q !== p).map(q => names[q]);
+    return `
+      <div class="sub">${p === G.commander ? 'you are the commander' : `lieutenant · the commander is ${esc(names[G.commander])}`}</div>
+      <div class="role ${isT ? 'traitor' : 'loyal'}">${isT ? 'Traitor' : 'Loyal'}</div>
+      <p>${isT
+        ? `You win if the loyal generals end up <b>split</b>, or ignore a loyal commander.${mates.length ? ` Your fellow traitor: <b>${esc(mates.join(', '))}</b>.` : ''}`
+        : 'You win only if every loyal general acts on the same order, and it\'s the commander\'s order if the commander is loyal.'}</p>`;
+  }
+  function done(label = 'Send and hide') {
+    return `<div class="row"><button class="primary" id="t-done">${label} →</button></div>`;
+  }
+  function next() { G.turn++; pass(); }
+
+  function commanderTurn(p) {
+    const lts = G.order.slice(1);
+    if (!G.traitors.has(p)) {
+      stage.innerHTML = roleBlock(p) + `
+        <p style="margin-top:14px">Choose the order. As a loyal commander you send the <b>same</b> order to everyone.</p>
+        <div class="row">
+          <button class="big toggle A" data-o="A">ATTACK</button>
+          <button class="big toggle R" data-o="R">RETREAT</button>
+        </div>`;
+      stage.querySelectorAll('[data-o]').forEach(b => b.onclick = () => {
+        G.cmdOrder = b.dataset.o;
+        for (const l of lts) G.choice[`${p}>${l}`] = G.cmdOrder;
+        next();
+      });
+      return;
+    }
+    // traitor commander: a separate order per lieutenant
+    G.cmdOrder = ATTACK;
+    for (const l of lts) G.choice[`${p}>${l}`] = G.choice[`${p}>${l}`] || ATTACK;
+    const draw = () => {
+      stage.innerHTML = roleBlock(p) + `
+        <p style="margin-top:14px">You can send <b>different</b> orders to different lieutenants. Tap to switch.</p>
+        ${lts.map(l => { const v = G.choice[`${p}>${l}`]; return `
+          <div class="msg"><span>to ${esc(names[l])}${G.traitors.has(l) ? ' <span class="lie">(traitor)</span>' : ''}</span>
+          <button class="toggle ${v}" data-l="${l}">${WORD[v]}</button></div>`; }).join('')}
+        ${done()}`;
+      stage.querySelectorAll('[data-l]').forEach(b => b.onclick = () => {
+        const k = `${p}>${b.dataset.l}`; G.choice[k] = G.choice[k] === ATTACK ? RETREAT : ATTACK; draw();
+      });
+      stage.querySelector('#t-done').onclick = next;
+    };
+    draw();
+  }
+
+  function lieutenantTurn(p) {
+    const heard = G.choice[`${G.commander}>${p}`];
+    const others = G.order.slice(1).filter(q => q !== p);
+    const intro = `<p style="margin-top:14px">${esc(names[G.commander])} told you: <span class="order ${heard}">${WORD[heard]}</span></p>`;
+    if (!G.traitors.has(p)) {
+      for (const q of others) G.choice[`${p}>${q}`] = heard;
+      stage.innerHTML = roleBlock(p) + intro + `
+        <p>Now every lieutenant privately tells the others what the commander said to them. You're loyal, so you'll pass it on honestly to
+        <b>${esc(others.map(q => names[q]).join(', '))}</b>.</p>
+        <p>You don't choose your action. The protocol does: you'll follow the <b>majority</b> of everything you hear (ties mean retreat).</p>
+        ${done()}`;
+      stage.querySelector('#t-done').onclick = next;
+      return;
+    }
+    for (const q of others) G.choice[`${p}>${q}`] = G.choice[`${p}>${q}`] || heard;
+    const draw = () => {
+      stage.innerHTML = roleBlock(p) + intro + `
+        <p>Now each lieutenant tells the others what the commander said. You can claim anything, and a different thing to each person. Tap to switch.</p>
+        ${others.map(q => { const v = G.choice[`${p}>${q}`]; return `
+          <div class="msg"><span>tell ${esc(names[q])}${G.traitors.has(q) ? ' <span class="lie">(traitor)</span>' : ''} the commander said</span>
+          <button class="toggle ${v}" data-q="${q}">${WORD[v]}${v !== heard ? ' ✗' : ''}</button></div>`; }).join('')}
+        ${done()}`;
+      stage.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+        const k = `${p}>${b.dataset.q}`; G.choice[k] = G.choice[k] === ATTACK ? RETREAT : ATTACK; draw();
+      });
+      stage.querySelector('#t-done').onclick = next;
+    };
+    draw();
+  }
+
+  function passToTable() {
+    stage.innerHTML = `
+      <div class="sub">all orders sent</div>
+      <h4>Put the phone in the middle</h4>
+      <p>Every message has been delivered. Each loyal lieutenant now acts on the majority of what they heard.</p>
+      <div class="row"><button class="primary big" id="t-rev">Reveal everything</button></div>`;
+    stage.querySelector('#t-rev').onclick = reveal;
+  }
+
+  /* ---------------- reveal ---------------- */
+  let R = null, sel = -1;
+  function reveal() {
+    const res = runOM(1, G.n, G.commander, G.traitors, G.cmdOrder,
+      (from, to) => G.choice[`${from}>${to}`] || ATTACK);
+    // a traitor commander has no true order, so its round-1 messages aren't 'lies', just red
+    if (G.traitors.has(G.commander)) for (const e of res.log) if (e.round === 1) e.lie = false;
+    G.res = res;
+    // tally per (players, traitors)
+    const key = `${G.n}-${G.traitors.size}`, tally = store.get('tally', {});
+    tally[key] = tally[key] || { g: 0, w: 0 }; tally[key].g++; if (res.win) tally[key].w++;
+    store.set('tally', tally);
+
+    const dec = res.decisions, loyal = res.loyal;
+    const tNames = [...G.traitors].map(t => names[t]).join(' and ');
+    let why;
+    if (!res.agree) {
+      const a = loyal.filter(l => dec[l] === ATTACK).map(l => names[l]), r = loyal.filter(l => dec[l] === RETREAT).map(l => names[l]);
+      why = `The loyal generals split: <b>${esc(a.join(', '))}</b> attacked alone while <b>${esc(r.join(', '))}</b> retreated.`;
+    } else if (!res.followed) {
+      why = `The loyal lieutenants agreed on <b>${WORD[dec[loyal[0]]]}</b>, but their loyal commander ordered <b>${WORD[G.cmdOrder]}</b>.`;
+    } else {
+      why = loyal.length ? `Every loyal lieutenant acted on <b>${WORD[dec[loyal[0]]]}</b>${G.traitors.has(G.commander) ? '. The traitor commander couldn\'t split them' : ', as the commander ordered'}.` : 'No loyal lieutenants were left to fool.';
+    }
+    stage.innerHTML = `
+      <div class="sub">the reveal</div>
+      <div class="verdict ${res.win ? 'win' : 'lose'}">${res.win ? 'The loyal generals win' : 'The traitors win'}</div>
+      <p>${why} The traitor${G.traitors.size > 1 ? 's were' : ' was'} <b class="lie">${esc(tNames)}</b>.</p>
+      <p style="margin-top:8px">${theoryLine(G.n, G.traitors.size)}</p>
+      <div class="graph"><canvas id="t-graph" aria-label="Every message sent, drawn as arrows between players"></canvas></div>
+      <div class="legend">Tap a general to see only what they heard. <span style="color:var(--caution)">■</span> attack <span style="color:var(--ir)">■</span> retreat · red arrows come from traitors · ✗ marks a lie</div>
+      <table class="inbox"><tr><th>loyal lieutenant</th><th>heard</th><th>acted on</th></tr>
+        ${loyal.map(l => {
+          const heard = res.log.filter(e => e.to === l).map(e => `${esc(names[e.from])} <span class="order ${e.value}" style="min-width:0;padding:0 5px">${e.value}</span>${e.lie ? '<span class="lie">✗</span>' : ''}`).join(' · ');
+          return `<tr><td>${esc(names[l])}</td><td>${heard}</td><td><span class="order ${dec[l]}">${WORD[dec[l]]}</span></td></tr>`;
+        }).join('')}
+      </table>
+      <div class="row">
+        <button class="primary" id="t-again">Play again →</button>
+        <button id="t-setup">Change players</button>
+      </div>`;
+    stage.querySelector('#t-again').onclick = start;
+    stage.querySelector('#t-setup').onclick = setup;
+    sel = -1;
+    const cv = stage.querySelector('#t-graph');
+    cv.addEventListener('click', e => {
+      const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      let hit = -1;
+      R.pos.forEach((p, i) => { if (Math.hypot(p[0] - x, p[1] - y) < 28) hit = i; });
+      sel = hit === sel ? -1 : hit; drawGraph();
+    });
+    sizeGraph();
+  }
+
+  function sizeGraph() {
+    const cv = document.getElementById('t-graph'); if (!cv) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.parentElement.clientWidth;
+    const h = Math.round(Math.min(Math.max(w * (w < 560 ? 0.95 : 0.6), 300), 480));
+    cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px';
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const rad = Math.min(w / 2 - (w < 560 ? 44 : 70), h / 2 - 50), cx = w / 2, cy = h / 2;
+    // commander at the top, others clockwise in seating order
+    const pos = [];
+    G.order.forEach((p, k) => { const a = -Math.PI / 2 + k * 2 * Math.PI / G.n; pos[p] = [cx + rad * Math.cos(a), cy + rad * Math.sin(a)]; });
+    R = { ctx, w, h, pos };
+    drawGraph();
+  }
+  function arrow(ctx, x0, y0, x1, y1, off, col, width, value, lie, alpha) {
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+    const nx = -uy * off, ny = ux * off;
+    const sx = x0 + ux * 22 + nx, sy = y0 + uy * 22 + ny, ex = x1 - ux * 24 + nx, ey = y1 - uy * 24 + ny;
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = col; ctx.lineWidth = width;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.fillStyle = col; ctx.beginPath();
+    ctx.moveTo(ex, ey); ctx.lineTo(ex - ux * 8 - uy * 4, ey - uy * 8 + ux * 4); ctx.lineTo(ex - ux * 8 + uy * 4, ey - uy * 8 - ux * 4); ctx.closePath(); ctx.fill();
+    // value chip three-quarters of the way along
+    const tx = sx + (ex - sx) * 0.72, ty = sy + (ey - sy) * 0.72;
+    ctx.fillStyle = value === ATTACK ? '#ffc861' : '#69c9ff';
+    ctx.beginPath(); ctx.arc(tx, ty, 7.5, 0, Math.PI * 2); ctx.fill();
+    if (lie) { ctx.strokeStyle = '#ff6b5b'; ctx.lineWidth = 2; ctx.stroke(); }
+    ctx.fillStyle = '#0b0f14'; ctx.font = '600 9.5px ui-monospace, Menlo, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(value, tx, ty + .5);
+    ctx.globalAlpha = 1;
+  }
+  function drawGraph() {
+    const { ctx, w, h, pos } = R;
+    ctx.fillStyle = '#0b0f14'; ctx.fillRect(0, 0, w, h);
+    const res = G.res;
+    const focus = e => sel < 0 || e.to === sel;
+    // relays first (under), then the commander's orders on top
+    for (const e of [...res.log].sort((a, b) => b.round - a.round)) {
+      const [x0, y0] = pos[e.from], [x1, y1] = pos[e.to];
+      const off = e.round === 1 ? 0 : 5;
+      const col = e.traitor ? '#ff6b5b' : 'rgba(159,176,195,.55)';
+      arrow(ctx, x0, y0, x1, y1, off, col, e.round === 1 ? 2 : 1.3, e.value, e.lie, focus(e) ? 1 : 0.07);
+    }
+    ctx.textBaseline = 'alphabetic';
+    for (let p = 0; p < G.n; p++) {
+      const [x, y] = pos[p], isT = G.traitors.has(p);
+      ctx.beginPath(); ctx.arc(x, y, 17, 0, Math.PI * 2);
+      ctx.fillStyle = '#121a24'; ctx.fill();
+      ctx.lineWidth = sel === p ? 3.5 : 2; ctx.strokeStyle = isT ? '#ff6b5b' : '#6ee7a0'; ctx.stroke();
+      ctx.fillStyle = '#e8eef5'; ctx.font = '500 13px ui-monospace, Menlo, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(p === G.commander ? '★' : String(p + 1), x, y + 4.5);
+      // label placement: outward from the circle — beside side nodes, above/below top and bottom ones
+      const ang = Math.atan2(y - h / 2, x - w / 2), cs = Math.cos(ang);
+      let lx = x, ly1, ly2;
+      ctx.textAlign = 'center';
+      if (w >= 560 && Math.abs(cs) > 0.55) { ctx.textAlign = cs > 0 ? 'left' : 'right'; lx = x + (cs > 0 ? 24 : -24); ly1 = y - 1; ly2 = y + 12; }
+      else if (y > h / 2) { ly1 = y + 31; ly2 = y + 44; }
+      else { ly1 = y - 37; ly2 = y - 24; }
+      ctx.font = '11px ui-monospace, Menlo, monospace'; ctx.fillStyle = '#9fb0c3';
+      const nm = names[p].length > 12 ? names[p].slice(0, 11) + '…' : names[p];
+      if (ctx.textAlign === 'center') { const half = ctx.measureText('→ RETREAT  ').width / 2 + 4; lx = Math.min(Math.max(lx, half), w - half); }
+      ctx.fillText(nm, lx, ly1);
+      const d = G.res.decisions[p];
+      let tag, col;
+      if (d) { tag = '→ ' + WORD[d]; col = d === ATTACK ? '#ffc861' : '#69c9ff'; }
+      else if (p !== G.commander) { tag = 'traitor'; col = '#ff6b5b'; }
+      else { tag = isT ? 'traitor cmdr' : 'commander'; col = isT ? '#ff6b5b' : '#6d7d90'; }
+      ctx.fillStyle = col; ctx.fillText(tag, lx, ly2);
+    }
+  }
+  let rw = window.innerWidth;
+  window.addEventListener('resize', () => { if (window.innerWidth !== rw && G && G.res && document.getElementById('t-graph')) { rw = window.innerWidth; sizeGraph(); } });
+
+  setup();
+})();
+</script>
 </body>
 </html>

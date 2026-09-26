@@ -198,6 +198,19 @@
 
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   video.hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  /* ---------- lab sub-index ---------- */
+  section.lab { padding: 64px 0 56px; border-bottom: 1px solid var(--rule); }
+  .lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 26px; }
+  .lab-card {
+    display: block; padding: 18px 18px 16px; border: 1px solid var(--rule); border-radius: 10px;
+    background: var(--paper-2); color: var(--ink); text-decoration: none; transition: border-color .15s;
+  }
+  .lab-card:hover { border-color: var(--red); }
+  .lab-card .top { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); font-size: 12px; color: var(--red); }
+  .lab-card .st { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); }
+  .lab-card h3 { font-family: var(--serif); font-weight: 500; font-size: 22px; line-height: 1.2; margin: 8px 0 6px; }
+  .lab-card p { font-size: 15px; color: var(--ink-dim); line-height: 1.55; }
   @media (max-width: 520px) {
     body { font-size: 16px; }
     header { padding-top: 60px; }
@@ -230,6 +243,7 @@
       <a href="#blend"><span class="n">04</span>Two Wrong Answers<span class="what">Kalman filter</span></a>
       <a href="#pulse"><span class="n">05</span>Light Through a Finger<span class="what">pulse oximetry</span></a>
       <a href="#bloat"><span class="n">06</span>Drop It on Purpose<span class="what">bufferbloat</span></a>
+      <a href="#lab"><span class="n">07+</span>The Lab<span class="what">new concepts</span></a>
     </nav>
   </div>
 </header>
@@ -606,6 +620,29 @@
       <p>Bufferbloat is that fix breaking from the opposite direction. Jim Gettys named it in 2010
       while trying to work out why his home connection became unusable whenever he uploaded a file. The cure
       wasn't more bandwidth. It was to drop packets deliberately, before anyone has to wait.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ lab -->
+<section class="lab" id="lab">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">07–10</span><h2>The Lab</h2></div>
+    <div class="ex-sub">new concepts, each on its own page, built a piece at a time</div>
+    <div class="prose">
+      <p>The six exhibits above are well-known ideas, remixed. These four are attempts at things
+      that don't exist yet as something you can play with. Each one links to its own page, where you'll find the
+      design and a build plan, and the status tag says how far along it is.</p>
+    </div>
+    <div class="lab-grid">
+      <a class="lab-card" href="liar/"><div class="top"><span>07</span><span class="st">blueprint</span></div>
+        <h3>The Liar's Game</h3><p>Twenty questions against an opponent allowed to lie. The math that catches it is error correction with feedback.</p></a>
+      <a class="lab-card" href="traitors/"><div class="top"><span>08</span><span class="st">blueprint</span></div>
+        <h3>Traitors, Pass-the-Phone</h3><p>A party game that runs the Byzantine Generals protocol. With three players the loyal side can't win; with four it can.</p></a>
+      <a class="lab-card" href="fingerprint/"><div class="top"><span>09</span><span class="st">blueprint</span></div>
+        <h3>Your Phone's Fingerprint Is Its Flaws</h3><p>Factory calibration errors in your motion sensors form a stable ID. See yours, entirely on your device.</p></a>
+      <a class="lab-card" href="tearproof/"><div class="top"><span>10</span><span class="st">blueprint</span></div>
+        <h3>Tear-Proof Secrets</h3><p>Split a password across printable tags so that any three of five rebuild it, and two reveal nothing.</p></a>
     </div>
   </div>
 </section>

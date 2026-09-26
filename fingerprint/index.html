@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Phone's Fingerprint · Lab</title>
+<meta name="description" content="Your phone's motion sensors have tiny factory calibration errors, and those errors are an ID. A local-only demonstration of sensor calibration fingerprinting.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cg fill='none' stroke='%2369c9ff' stroke-width='3'%3E%3Cpath d='M20 44 C18 30 24 18 34 18 C44 18 48 28 46 40'/%3E%3Cpath d='M27 48 C25 36 28 26 34 26 C40 26 40 34 39 44'/%3E%3Cpath d='M34 34 V50'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="../lab.css">
+</head>
+<body>
+<div class="wrap crumb"><a href="../">← Right Answers from Wrong Parts</a> · <a href="../#lab">Lab</a></div>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Lab · 09 <span class="status">blueprint</span></div>
+    <h1>Your Phone's Fingerprint Is Its Flaws</h1>
+    <div class="lede">
+      <p>Every other exhibit on this site treats sensor error as something to cancel. This one
+      turns it around. The accelerometer and gyroscope in your phone were each calibrated at the
+      factory, and the leftover errors are small, stable, and unique to your phone.</p>
+      <p>That makes them an ID. A web page can read them without asking on many browsers, and the
+      ID survives clearing cookies, private browsing, and a factory reset. This page will show you
+      yours, entirely on your device, and explain the fix that made it harder.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="wrap">
+    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Sensor capture, the calibration estimate, and your fingerprint go here. See the build plan below.</div></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it will work</h2>
+    <div class="prose">
+      <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
+      down. The page records <code>devicemotion</code> samples. Gravity is a known 9.81&nbsp;m/s²,
+      so any difference between what the sensor reports and 1&nbsp;g is error.</p>
+      <p><strong>The trick from the SensorID paper:</strong> the raw sensor outputs whole-number ADC
+      counts, and the phone scales them by a per-device calibration gain before handing them to
+      the browser. So the values the page sees sit on a grid whose spacing <em>is</em> that
+      gain. Find the spacing (a greatest-common-divisor search over sample differences) and you
+      have recovered the factory calibration without any special access.</p>
+      <p><strong>The result:</strong> a short hex fingerprint built from the recovered gains and
+      offsets, shown alongside how many bits of identity it probably carries. Run it twice and
+      it should match. Run it on a different phone and it shouldn't.</p>
+      <p><strong>Privacy:</strong> nothing is sent anywhere. The page has no network calls, and
+      the fingerprint is only displayed, never stored.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Build plan</h2>
+    <ol class="plan">
+      <li><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
+      <li><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
+      <li><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
+      <li><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
+      <li><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
+      <li><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The deep cut</h2>
+    <div class="deep">
+      <p>Zhang, Beresford, and Sheret presented SensorID at IEEE Security &amp; Privacy in 2019.
+      They could fingerprint iPhones from about 100 motion samples, in under a second, with
+      roughly 67 bits of entropy. Apple fixed it in iOS 12.2 by adding random noise to the
+      sensor output, and starting with iOS 13, Safari asks permission before sharing motion data at all.</p>
+      <p>The broader idea is older. Researchers had already shown that accelerometer
+      imperfections could identify devices in 2014. Manufacturing tolerances that engineers
+      calibrate away for accuracy are exactly what make each unit distinguishable.</p>
+    </div>
+    <h3>Reading</h3>
+    <ul class="refs">
+      <li>J. Zhang, A. R. Beresford &amp; I. Sheret, “SensorID: Sensor calibration fingerprinting for smartphones,” IEEE S&amp;P, 2019.</li>
+      <li>H. Bojinov, Y. Michalevsky, G. Nakibly &amp; D. Boneh, “Mobile device identification via sensor fingerprinting,” arXiv:1408.1416, 2014.</li>
+      <li>W3C, <i>DeviceOrientation Event Specification</i>, privacy considerations.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">Lab · 09 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/repo2">source</a></div></footer>
+</body>
+</html>

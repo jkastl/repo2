@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Liar's Game · Lab</title>
+<meta name="description" content="Twenty questions against an opponent allowed to lie, and the error-correcting-code math that still catches it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Ctext x='32' y='46' font-family='Georgia,serif' font-size='40' text-anchor='middle' fill='%23ffc861'%3E%3F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../lab.css">
+</head>
+<body>
+<div class="wrap crumb"><a href="../">← Right Answers from Wrong Parts</a> · <a href="../#lab">Lab</a></div>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Lab · 07 <span class="status">blueprint</span></div>
+    <h1>The Liar's Game</h1>
+    <div class="lede">
+      <p>I'm thinking of a number from 1 to 1,000,000. Ask me yes-or-no questions. With honest
+      answers, 20 questions always do it, because 2²⁰ is just over a million.</p>
+      <p>Now I'm allowed to lie once, and I won't tell you when. How many questions do you need?
+      The answer is exactly <b>25</b>, and the reason it's 25 is the same math that lets a QR code
+      survive a sticker.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="wrap">
+    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>The game board goes here. See the build plan below.</div></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it will work</h2>
+    <div class="prose">
+      <p><strong>You ask, the page lies.</strong> The page never picks a number. It's an
+      <em>adversary</em>: after every question it chooses whichever answer keeps the most
+      possibilities alive, lying whenever a lie hurts you more than the truth. You can't
+      out-guess it by luck, only by asking well.</p>
+      <p><strong>The board</strong> shows every candidate number as a cell colored by how many lies it
+      would take for that number to be the answer: 0 lies (still clean), 1 lie (suspect), or
+      more than the allowed lies (dead). Asking a question splits the board, and whichever side the
+      page says "no" to gets one lie closer to dead.</p>
+      <p><strong>The volume meter</strong> is the heart of it. Berlekamp's trick: give every candidate a
+      weight equal to the number of answer sequences you still can't rule out for it. The total
+      weight can at most halve with each question. If the weight exceeds 2<sup>q</sup> with
+      <em>q</em> questions left, you're provably stuck. The meter shows that bound live, so
+      you can watch a bad question waste your budget.</p>
+      <p><strong>Reverse mode:</strong> you pick the number and you lie. The page asks the questions and
+      still finds you, in the minimum number the math allows.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Build plan</h2>
+    <ol class="plan">
+      <li><b>Core math, no UI.</b> A state is a vector of counts: how many candidates have used 0, 1, …, k lies.
+        <ul><li>Berlekamp volume: V<sub>q</sub>(state) = Σ<sub>i</sub> a<sub>i</sub> · Σ<sub>j≤k−i</sub> C(q, j).</li>
+        <li>The adversary answers to maximize the volume that remains, breaking ties toward keeping more clean candidates.</li>
+        <li>Test: a state is winnable in q questions only if V<sub>q</sub> ≤ 2<sup>q</sup>. Check against the known 1-lie result (10⁶ needs 25).</li></ul></li>
+      <li><b>Small board, 1 lie.</b> Numbers 1–64, one allowed lie, question = "is it in this set?" built by tapping cells or using presets (≥ n, bit k is 1, even).
+        <ul><li>Cells colored by lies used, a question history, and the volume meter against 2<sup>q</sup>.</li></ul></li>
+      <li><b>Reverse mode.</b> The page asks using a volume-halving strategy. You answer with Yes/No and may lie up to k times, and it announces your number.</li>
+      <li><b>Scale and settings.</b> 1–1,000,000 with 0–3 lies (the board becomes a histogram of the lie-count classes), and a "kid mode" with 1–20 and picture questions.</li>
+      <li><b>Write-up.</b> The link to codes: each question is a bit, lies are bit errors, and the questioner is designing an error-correcting code one bit at a time. Add the "try this" list and the deep cut.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The deep cut</h2>
+    <div class="deep">
+      <p>Stanisław Ulam posed the question in his 1976 autobiography, <em>Adventures of a
+      Mathematician</em>, and Alfréd Rényi had described a version in 1961. Andrzej Pelc settled the
+      one-lie case in 1987: for a million numbers it's 25 questions. Each extra lie costs more, and
+      the exact answers for larger k took years of casework.</p>
+      <p>What makes it more than a puzzle is that it's error-correcting codes <em>with
+      feedback</em>. Because you hear each answer before asking the next question, you can adapt,
+      and adaptive questioning sometimes needs fewer questions than any fixed code.</p>
+    </div>
+    <h3>Reading</h3>
+    <ul class="refs">
+      <li>A. Pelc, “Searching games with errors—fifty years of coping with liars,” <i>Theoretical Computer Science</i> 270, 2002.</li>
+      <li>E. R. Berlekamp, “Block coding for the binary symmetric channel with noiseless, delayless feedback,” 1968.</li>
+      <li>J. Spencer &amp; P. Winkler, “Three thresholds for a liar,” <i>Combinatorics, Probability and Computing</i>, 1992.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">Lab · 07 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/repo2">source</a></div></footer>
+</body>
+</html>

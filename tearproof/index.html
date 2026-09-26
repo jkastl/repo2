@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tear-Proof Secrets · Lab</title>
+<meta name="description" content="Split a password across printable tags so that any few of them rebuild it: Reed–Solomon erasure coding and Shamir's secret sharing, on paper.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cg fill='%236ee7a0'%3E%3Crect x='12' y='14' width='16' height='16' rx='2'/%3E%3Crect x='36' y='14' width='16' height='16' rx='2'/%3E%3Crect x='24' y='36' width='16' height='16' rx='2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="../lab.css">
+</head>
+<body>
+<div class="wrap crumb"><a href="../">← Right Answers from Wrong Parts</a> · <a href="../#lab">Lab</a></div>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Lab · 10 <span class="status">blueprint</span></div>
+    <h1>Tear-Proof Secrets</h1>
+    <div class="lede">
+      <p>Type the Wi-Fi password, pick "5 tags, any 3", and print five small QR tags. Stick them on
+      the fridge, in a drawer, in the car. Lose any two and scan the remaining three to get the
+      password back.</p>
+      <p>It's the same polynomial math as <a href="../#scratch">Scratch the Code</a>, applied
+      to objects instead of bytes. Pick the <em>secret</em> mode and something stranger happens:
+      any two tags together reveal <em>nothing at all</em> about the password.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="wrap">
+    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Split, print, and recover go here. See the build plan below.</div></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it will work</h2>
+    <div class="prose">
+      <p><strong>Two modes, one polynomial idea.</strong> Any <em>k</em> points determine a
+      polynomial of degree <em>k − 1</em>. Hand out <em>n</em> points on it, and any <em>k</em> of
+      them rebuild it.</p>
+      <ul>
+        <li><strong>Backup mode (Reed–Solomon erasure code).</strong> The data <em>are</em> the
+        polynomial's coefficients. It's compact, since each tag holds about 1/k of the data, but each
+        tag reveals part of the secret.</li>
+        <li><strong>Secret mode (Shamir, 1979).</strong> The secret is only the constant term, and the
+        other coefficients are random. With fewer than <em>k</em> tags, every possible secret is
+        equally likely. Each tag is as big as the secret.</li>
+      </ul>
+      <p><strong>Split:</strong> enter text, choose <em>n</em> and <em>k</em>, and get <em>n</em>
+      printable tags. Each tag is a QR code plus a short human-typeable code and a label like
+      "tag 2 of 5 · any 3".</p>
+      <p><strong>Recover:</strong> scan tags with the camera (or type them in), and the page
+      shows the polynomial being pinned down one point at a time, then reveals the secret once
+      it has <em>k</em>.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Build plan</h2>
+    <ol class="plan">
+      <li><b>Math core.</b> GF(256) arithmetic (reuse from the main page's QR code), Lagrange interpolation, and share and recover for both modes, byte by byte.
+        <ul><li>Round-trip tests for every k-subset of n ≤ 8. In secret mode, check that the k − 1 share distribution doesn't depend on the secret.</li></ul></li>
+      <li><b>Visual explainer.</b> An interactive plot over the real numbers (for intuition): drag points, watch the unique curve through k of them, and see that k − 1 points fit infinitely many curves through every possible secret.</li>
+      <li><b>Split and print.</b> Text in, n/k chooser, tags out: QR (reuse the encoder, generalized beyond version 3), a base32 text form with a checksum, and a print stylesheet that lays tags out for cutting.</li>
+      <li><b>Recover.</b> Paste or type tag codes, with duplicate and wrong-set detection (tags carry a short set ID). Then camera scanning via <code>BarcodeDetector</code> where the browser supports it, and typed codes elsewhere.</li>
+      <li><b>Write-up.</b> Backup vs secret mode tradeoffs, why this is the basis for key backup in hardware wallets (SLIP-39) and for erasure coding in storage systems, and what it doesn't protect against (a thief who finds k tags).</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The deep cut</h2>
+    <div class="deep">
+      <p>Adi Shamir's 1979 paper, “How to share a secret,” is two pages long. Its security isn't
+      "hard to break"; it's <em>information-theoretic</em>. With k − 1 shares, every secret is
+      exactly as likely as every other, so there's nothing to compute, even with infinite
+      computing power.</p>
+      <p>The erasure-code version is why a storage cluster can lose whole drives without losing
+      files. It's also why a Reed–Solomon decoder repairs twice as much damage when it's
+      <em>told</em> which bytes are missing (erasures) as when it has to find them: a known-missing
+      byte costs half as much parity as an unknown wrong one.</p>
+    </div>
+    <h3>Reading</h3>
+    <ul class="refs">
+      <li>A. Shamir, “How to share a secret,” <i>Communications of the ACM</i> 22(11), 1979.</li>
+      <li>SatoshiLabs, SLIP-0039: Shamir's Secret-Sharing for Mnemonic Codes.</li>
+      <li>J. S. Plank, “Erasure codes for storage systems: a brief primer,” <i>;login:</i>, 2013.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">Lab · 10 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/repo2">source</a></div></footer>
+</body>
+</html>

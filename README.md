@@ -14,8 +14,20 @@ lying parts, and show how each one fails:
 
 **[jkastl.github.io/repo2](https://jkastl.github.io/repo2/)**
 
-One file, no build step, no dependencies, no network calls. The whole site is
-[`index.html`](index.html), served by GitHub Pages from `main`. The QR encoder/decoder
+## The Lab
+
+Four new concepts, each on its own page and built a piece at a time. Every page carries its own
+design and build plan, and [`CLAUDE.md`](CLAUDE.md) explains how to advance one.
+
+| # | Page | Idea | Status |
+|---|---|---|---|
+| 07 | [`liar/`](liar/) | Twenty questions against an adversary allowed to lie (Ulam's liar game, Berlekamp's volume bound) | blueprint |
+| 08 | [`traitors/`](traitors/) | Pass-the-phone party game running the Byzantine Generals protocol | blueprint |
+| 09 | [`fingerprint/`](fingerprint/) | Your phone's sensor calibration errors as an ID (SensorID, 2019), on-device only | blueprint |
+| 10 | [`tearproof/`](tearproof/) | Split a secret across printable tags; any k of n rebuild it (Reed–Solomon / Shamir) | blueprint |
+
+No build step, no dependencies, no network calls. The main page is one self-contained
+[`index.html`](index.html). Lab pages share [`lab.css`](lab.css). Everything is served by GitHub Pages from `main`. The QR encoder/decoder
 (GF(256), Berlekamp–Massey, Forney), Gauss–Newton GPS solver, Kalman filter, and TCP/CoDel
 simulation are all written from scratch in the page. The QR output matches the Python
 `qrcode` library bit for bit.

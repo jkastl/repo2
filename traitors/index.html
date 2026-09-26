@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traitors, Pass-the-Phone · Lab</title>
+<meta name="description" content="A pass-the-phone party game that runs the Byzantine Generals protocol, where the group discovers the 3f+1 bound by losing.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M32 12 L50 22 V36 C50 46 42 52 32 56 C22 52 14 46 14 36 V22 Z' fill='none' stroke='%23ff6b5b' stroke-width='4'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../lab.css">
+</head>
+<body>
+<div class="wrap crumb"><a href="../">← Right Answers from Wrong Parts</a> · <a href="../#lab">Lab</a></div>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Lab · 08 <span class="status">blueprint</span></div>
+    <h1>Traitors, Pass-the-Phone</h1>
+    <div class="lede">
+      <p>A party game for 3–7 players and one phone. You're generals around a besieged city. The
+      commander sends an order, <em>attack</em> or <em>retreat</em>, and the loyal generals win
+      only if they all act on the <em>same</em> order. The phone secretly makes some of you
+      traitors, and traitors lie to whoever they like.</p>
+      <p>Play it with three people and one traitor and the loyal side can't win reliably, no
+      matter how clever they are. Add a fourth player and they can. That isn't a balance
+      problem; it's a theorem from 1982, and the game makes you find it by losing.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="wrap">
+    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Setup, secret roles, and the message rounds go here. See the build plan below.</div></div></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>How it will work</h2>
+    <div class="prose">
+      <p><strong>Setup:</strong> player names (like Scatter), then how many traitors. The phone deals
+      roles in secret: each player takes the phone, taps to reveal their role, and passes it on.
+      One player is the commander, who may also be a traitor.</p>
+      <p><strong>Round 1:</strong> the commander privately sends each lieutenant an order. The phone
+      shows only the recipient's own inbox, so a traitor commander can tell different people
+      different things.</p>
+      <p><strong>Round 2 (the relay):</strong> each lieutenant tells every other lieutenant, in
+      private, what the commander told them. Traitors may relay anything. This is Lamport's
+      <em>Oral Messages</em> algorithm, OM(1).</p>
+      <p><strong>Decide:</strong> each loyal lieutenant takes the majority of everything they heard.
+      The phone then reveals the full message graph: who said what to whom, with every lie in red,
+      and whether the loyal generals agreed.</p>
+      <p><strong>The twist:</strong> after a few games, the phone offers <em>signed orders</em>, where
+      a forged relay is detectable. With signatures, agreement works with any number of traitors.
+      That's the difference between plain voting and what blockchains and flight computers
+      actually do.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Build plan</h2>
+    <ol class="plan">
+      <li><b>Protocol engine, no UI.</b> OM(m) as a pure function: inputs are roles, the commander's orders, and each traitor's relay choices; outputs are every loyal decision and whether they agree.
+        <ul><li>Unit-check the classic results: n = 3, m = 1 can fail; n = 4, m = 1 always succeeds; n = 7, m = 2 always succeeds.</li></ul></li>
+      <li><b>Hot-seat flow for OM(1).</b> Setup screen, secret role reveal with a "pass to NAME" screen between every private step so nobody sees someone else's inbox, commander round, relay round, decisions.
+        <ul><li>Traitors choose what to send with two big buttons. Loyal players just confirm the relay.</li></ul></li>
+      <li><b>The reveal.</b> An animated message graph with players around a circle, arrows for every message, lies in red, and a verdict. A tally across games of "loyal wins at n = 3 vs n = 4".</li>
+      <li><b>Bot players.</b> Fill empty seats with bots (honest or traitor) so two people can play a 4-player game, and a solo "watch it run" mode that loops random games at 3 vs 4 players.</li>
+      <li><b>Signed messages, SM(m).</b> Orders carry a seal that traitors can't forge, only withhold. Show agreement surviving 1 traitor out of 3.</li>
+      <li><b>Write-up.</b> Why 3f + 1 (the indistinguishability argument drawn as two scenarios the loyal lieutenant can't tell apart), fly-by-wire and the Boeing 777's triple-triple architecture, and why Bitcoin swapped identity for proof-of-work.</li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The deep cut</h2>
+    <div class="deep">
+      <p>The problem came out of NASA-funded work at SRI on SIFT, a fault-tolerant flight-control
+      computer, in the late 1970s. Engineers had assumed a failed processor just stops or sends
+      garbage. Pease, Shostak, and Lamport showed that a component that fails by sending
+      <em>different</em> wrong values to different peers needs more than 3× redundancy for every
+      fault you want to survive. They called it "Byzantine" so no living nationality would be
+      offended.</p>
+      <p>The 3-player impossibility is worth feeling from the inside. A loyal lieutenant who hears
+      "attack" from the commander and "the commander told me retreat" from the other lieutenant
+      has no way to know which of the two is lying. Both stories fit what they saw.</p>
+    </div>
+    <h3>Reading</h3>
+    <ul class="refs">
+      <li>L. Lamport, R. Shostak &amp; M. Pease, “The Byzantine Generals Problem,” <i>ACM TOPLAS</i> 4(3), 1982.</li>
+      <li>M. Pease, R. Shostak &amp; L. Lamport, “Reaching agreement in the presence of faults,” <i>J. ACM</i>, 1980.</li>
+      <li>Y. C. Yeh, “Triple-triple redundant 777 primary flight computer,” IEEE Aerospace Applications Conference, 1996.</li>
+    </ul>
+  </div>
+</section>
+</main>
+<footer><div class="wrap">Lab · 08 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/repo2">source</a></div></footer>
+</body>
+</html>

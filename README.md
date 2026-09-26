@@ -1,4 +1,6 @@
-# Right Answers from Wrong Parts
+# Tolerance
+
+*Right Answers from Wrong Parts.*
 
 Six live instruments that get the right answer out of noisy, broken, drifting, or
 lying parts, and show how each one fails:
@@ -12,7 +14,7 @@ lying parts, and show how each one fails:
 | 05 | Light Through a Finger | Pulse oximetry's ratio of ratios, motion artifact, perfusion, and camera heart rate with your own finger |
 | 06 | Drop It on Purpose | TCP CUBIC through a bloated router buffer, compared with CoDel and fq_codel |
 
-**[jkastl.github.io/repo2](https://jkastl.github.io/repo2/)**
+**[jkastl.github.io/tolerance](https://jkastl.github.io/tolerance/)**
 
 ## The Lab
 

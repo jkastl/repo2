@@ -1,6 +1,6 @@
-# repo2: Right Answers from Wrong Parts
+# Tolerance: Right Answers from Wrong Parts
 
-A static GitHub Pages site (served from `main`, root folder) at https://jkastl.github.io/repo2/.
+A static GitHub Pages site (served from `main`, root folder) at https://jkastl.github.io/tolerance/.
 Commit and push straight to `main`. There are no feature branches or PRs, no build step, and no dependencies.
 
 ## Layout
@@ -40,7 +40,7 @@ Headless Chromium is available in the cloud environment:
 
 ```js
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
-// launch, goto file:///home/user/repo2/<page>/index.html, collect 'pageerror' events,
+// launch, goto file://<repo root>/<page>/index.html, collect 'pageerror' events,
 // screenshot each .panel at 1200 px and 390 px widths
 ```
 

@@ -65,6 +65,10 @@ ol.plan > li b { color: var(--ink); font-weight: 600; }
 ol.plan > li.done b { text-decoration: line-through; text-decoration-color: var(--ink-faint); }
 ol.plan ul { margin: 6px 0 0 18px; font-size: 15px; }
 
+.try { max-width: 680px; margin-top: 22px; }
+.try ol { padding-left: 22px; color: var(--ink-dim); }
+.try li { margin: 6px 0; padding-left: 4px; }
+.try li::marker { font-family: var(--mono); font-size: 13px; color: var(--ink-faint); }
 .deep { max-width: 680px; margin-top: 10px; padding: 16px 18px; background: var(--paper-2); border-left: 3px solid var(--ink); color: var(--ink-dim); font-size: 15.5px; }
 .deep p + p { margin-top: 10px; }
 .refs { font-size: 14px; color: var(--ink-faint); max-width: 680px; }

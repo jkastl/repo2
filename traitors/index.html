@@ -12,7 +12,7 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 08 <span class="status building">building</span></div>
+    <div class="eyebrow">Lab · 08 <span class="status live">live</span></div>
     <h1>Traitors, Pass-the-Phone</h1>
     <div class="lede">
       <p>A party game for 3–7 players and one phone. You're generals around a besieged city. The
@@ -30,6 +30,21 @@
 <section>
   <div class="wrap">
     <div class="panel" id="game"><div class="stage" id="stage" aria-live="polite"></div></div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Play with <b>3 players and spoken orders</b> until the traitor wins. Look at the reveal: it's always
+        a loyal commander ordering attack, and a traitor lieutenant claiming "retreat". That's situation A from the proof below.</li>
+        <li>Add a fourth seat. A bot is fine. Now try to win as the traitor. You can't. The bots can't either, and they try
+        every lie there is.</li>
+        <li>Go back to 3 players and switch to <b>sealed</b> orders. As a traitor lieutenant, the only thing you can do is
+        withhold the seal, and it doesn't help.</li>
+        <li>Open <b>Watch bots play</b> and switch between the perfect and coin-flip traitor. A random liar is weaker, but
+        at 4 generals neither kind ever wins.</li>
+        <li>With 5 players and 2 traitors on spoken orders, the game still runs one relay round. Get a friend to be the
+        other traitor and try to split the loyal side. Two traitors need two rounds <em>and</em> 7 generals.</li>
+      </ol>
+    </div>
     <p class="prose" style="font-size:14px;margin-top:10px">Playable with spoken orders (one relay round, OM(1)) or sealed orders (SM(m), one relay round per traitor). Any seat can be a bot, so two people can play a 4-player game, and <b>Watch bots play</b> runs 3- and 4-general tables side by side on their own. Nothing leaves the phone. Names and the win tally are saved only in this browser.</p>
   </div>
 </section>
@@ -79,6 +94,77 @@
 
 <section>
   <div class="wrap">
+    <h2>Why four? The picture behind 3f&nbsp;+&nbsp;1</h2>
+    <div class="prose">
+      <p>Here is the whole proof that three generals can't beat one traitor. Put yourself in the shoes of
+      lieutenant <b>L1</b>, circled below, in two different situations.</p>
+    </div>
+    <div class="panel proof">
+      <div class="pair">
+        <figure><svg viewBox="0 0 300 282" role="img" aria-label="Situation A" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5"><defs><marker id="sag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgba(159,176,195,.6)"/></marker><marker id="sar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff6b5b"/></marker></defs><text x="10" y="16" fill="#6d7d90" font-size="10.5" letter-spacing="1.5">SITUATION A</text><g transform="translate(0,22)"><line x1="138" y1="66" x2="76" y2="176" stroke="rgba(159,176,195,.6)" stroke-width="1.8" marker-end="url(#sag)"/><line x1="162" y1="66" x2="224" y2="176" stroke="rgba(159,176,195,.6)" stroke-width="1.8" marker-end="url(#sag)"/><line x1="214" y1="200" x2="88" y2="200" stroke="#ff6b5b" stroke-width="1.8" marker-end="url(#sar)"/><rect x="36.8" y="106" width="55.2" height="19" rx="5" fill="#ffc861"/><text x="64.4" y="120" text-anchor="middle" fill="#0b0f14" font-weight="600">ATTACK</text><rect x="208.0" y="106" width="55.2" height="19" rx="5" fill="#ffc861"/><text x="235.6" y="120" text-anchor="middle" fill="#0b0f14" font-weight="600">ATTACK</text><rect x="112.6" y="178" width="76.8" height="19" rx="5" fill="#69c9ff" stroke="#ff6b5b" stroke-width="2"/><text x="151.0" y="192" text-anchor="middle" fill="#0b0f14" font-weight="600">“RETREAT”</text><circle cx="150" cy="46" r="20" fill="#121a24" stroke="#6ee7a0" stroke-width="2"/><text x="150" y="50.5" text-anchor="middle" fill="#e8eef5" font-weight="500">★</text><text x="150" y="18" text-anchor="middle" fill="#6ee7a0" font-size="11">commander · loyal</text><circle cx="62" cy="200" r="27" fill="none" stroke="#e8eef5" stroke-width="1" stroke-dasharray="3 3"/><circle cx="62" cy="200" r="20" fill="#121a24" stroke="#6ee7a0" stroke-width="2"/><text x="62" y="204.5" text-anchor="middle" fill="#e8eef5" font-weight="500">L1</text><text x="62" y="244" text-anchor="middle" fill="#6ee7a0" font-size="11">loyal</text><circle cx="238" cy="200" r="20" fill="#121a24" stroke="#ff6b5b" stroke-width="2"/><text x="238" y="204.5" text-anchor="middle" fill="#e8eef5" font-weight="500">L2</text><text x="238" y="244" text-anchor="middle" fill="#ff6b5b" font-size="11">traitor</text></g></svg><figcaption><b>A.</b> The commander is loyal and orders <span class="o A">ATTACK</span>.
+          L2 is the traitor and lies to L1 about what the commander said.<br><span class="must">L1 must attack</span>, because loyal
+          lieutenants have to obey a loyal commander.</figcaption></figure>
+        <figure><svg viewBox="0 0 300 282" role="img" aria-label="Situation B" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5"><defs><marker id="sbg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="rgba(159,176,195,.6)"/></marker><marker id="sbr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff6b5b"/></marker></defs><text x="10" y="16" fill="#6d7d90" font-size="10.5" letter-spacing="1.5">SITUATION B</text><g transform="translate(0,22)"><line x1="138" y1="66" x2="76" y2="176" stroke="#ff6b5b" stroke-width="1.8" marker-end="url(#sbr)"/><line x1="162" y1="66" x2="224" y2="176" stroke="#ff6b5b" stroke-width="1.8" marker-end="url(#sbr)"/><line x1="214" y1="200" x2="88" y2="200" stroke="rgba(159,176,195,.6)" stroke-width="1.8" marker-end="url(#sbg)"/><rect x="36.8" y="106" width="55.2" height="19" rx="5" fill="#ffc861"/><text x="64.4" y="120" text-anchor="middle" fill="#0b0f14" font-weight="600">ATTACK</text><rect x="208.0" y="106" width="62.4" height="19" rx="5" fill="#69c9ff"/><text x="239.2" y="120" text-anchor="middle" fill="#0b0f14" font-weight="600">RETREAT</text><rect x="112.6" y="178" width="76.8" height="19" rx="5" fill="#69c9ff"/><text x="151.0" y="192" text-anchor="middle" fill="#0b0f14" font-weight="600">“RETREAT”</text><circle cx="150" cy="46" r="20" fill="#121a24" stroke="#ff6b5b" stroke-width="2"/><text x="150" y="50.5" text-anchor="middle" fill="#e8eef5" font-weight="500">★</text><text x="150" y="18" text-anchor="middle" fill="#ff6b5b" font-size="11">commander · traitor</text><circle cx="62" cy="200" r="27" fill="none" stroke="#e8eef5" stroke-width="1" stroke-dasharray="3 3"/><circle cx="62" cy="200" r="20" fill="#121a24" stroke="#6ee7a0" stroke-width="2"/><text x="62" y="204.5" text-anchor="middle" fill="#e8eef5" font-weight="500">L1</text><text x="62" y="244" text-anchor="middle" fill="#6ee7a0" font-size="11">loyal</text><circle cx="238" cy="200" r="20" fill="#121a24" stroke="#6ee7a0" stroke-width="2"/><text x="238" y="204.5" text-anchor="middle" fill="#e8eef5" font-weight="500">L2</text><text x="238" y="244" text-anchor="middle" fill="#6ee7a0" font-size="11">loyal</text></g></svg><figcaption><b>B.</b> The commander is the traitor and tells the two lieutenants different things.
+          L2 is loyal and truthfully reports <span class="o R">RETREAT</span>.<br><span class="must">L1 must retreat</span>, because L2 will (see below)
+          and the loyal lieutenants have to agree.</figcaption></figure>
+      </div>
+      <div class="same">L1's inbox in both: <span class="o A">ATTACK</span> from the commander, <span class="o R">“RETREAT”</span> from L2.
+        Same evidence, opposite correct answers. Whatever rule L1 follows, it gets one of the two wrong.</div>
+    </div>
+    <div class="prose" style="margin-top:18px">
+      <p>Why must L2 retreat in B? From L2's side, B looks exactly like a third situation: a loyal commander ordering
+      retreat, with L1 as a traitor who claims the order was attack. In that situation L2 must obey the commander, and
+      retreat. L2 can't tell the two apart either, so L2 retreats in B too. That forces L1's hand.</p>
+      <p>So with three generals, every possible rule loses <em>somewhere</em>. In this game the rule is majority, ties to
+      retreat, and it loses in situation A. That's exactly the case the bots keep finding: a loyal commander ordering
+      attack, and a traitor lieutenant muttering "retreat".</p>
+      <p><strong>More traitors.</strong> Now suppose there are <i>f</i> traitors and only 3<i>f</i> generals. Split the
+      generals into three teams of at most <i>f</i> each and let each team play one of the three roles above. One whole team
+      can be traitors, so the three-general trap applies to the teams. That's why you need at least
+      <b>3<i>f</i>&nbsp;+&nbsp;1</b> generals to survive <i>f</i> traitors: 4 for one traitor, 7 for two. You also need
+      <i>f</i> relay rounds on top of the commander's own messages. Fischer and Lynch proved you can't do it in fewer.</p>
+      <p><strong>What the seals change.</strong> Situation A depends on L2 being able to say "the commander told me
+      retreat" without proof. With sealed orders, a claim needs the commander's seal on it, and L2 doesn't have one for
+      retreat. In B, the traitor commander's two contradictory seals end up in everyone's hands, and that's evidence
+      against the commander, not against L2. The two situations stop looking alike, and the bound drops from
+      3<i>f</i>&nbsp;+&nbsp;1 generals to <em>any</em> number of traitors, given <i>f</i> relay rounds. Real systems use digital
+      signatures as the seals.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Where this lives</h2>
+    <div class="prose">
+      <h3>Flight computers</h3>
+      <p>The problem was invented for aircraft. SRI's SIFT project, funded by NASA in the late 1970s, asked how many
+      computers you need to fly a plane when one of them might fail in the worst way possible. Worst case isn't a computer
+      that crashes. It's one that tells different neighbours different things. That sounds paranoid until you see how it
+      happens: a sensor or bus signal sitting right at the threshold between 0 and 1 gets read as 0 by some receivers and 1
+      by others. Driscoll and colleagues at Honeywell collected real cases of this in avionics hardware.</p>
+      <p>The Boeing 777's primary flight control system has three primary flight computers. Each one has three
+      <em>lanes</em>, and each lane uses a different processor: an Intel 80486, a Motorola 68040, and an AMD 29050. Nine
+      computers in all, "triple-triple". Inside each computer the lanes check each other, and the three computers' outputs are
+      combined by taking the middle value, so a lane or computer that goes wrong gets outvoted and cut out. The dissimilar processors guard
+      against the other lesson from the Vote exhibit: three copies of the same bug are one bug.</p>
+      <h3>Blockchains</h3>
+      <p>Byzantine agreement has always needed a fixed list of who's voting. 3<i>f</i>&nbsp;+&nbsp;1 counts
+      <em>identities</em>. On the open internet, identities are free, so one attacker can show up as a thousand generals
+      and own any majority. That's a <em>Sybil attack</em>.</p>
+      <p>Bitcoin's 2008 paper got around this by not counting identities at all. Its vote is "one-CPU-one-vote": the
+      longest chain of proof-of-work wins, so your say is proportional to the computing power you burn. Traitors are
+      bounded by how much hardware they can pay for, not by how many names they can make up. The cost is that agreement is
+      only ever probable, getting more certain with every block, never final the way a Byzantine protocol is.</p>
+      <p>Proof-of-stake chains went back to the classic protocol and weighted the votes. Ethereum, Cosmos and similar
+      systems finalize a block when validators holding <em>more than two-thirds</em> of the stake sign it. That's
+      3<i>f</i>&nbsp;+&nbsp;1, counted in money instead of generals, with digital signatures as the seals.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>Build plan</h2>
     <ol class="plan">
       <li class="done"><b>Protocol engine, no UI.</b> OM(m) as a pure function: inputs are roles, the commander's orders, and each traitor's relay choices; outputs are every loyal decision and whether they agree.
@@ -88,7 +174,7 @@
       <li class="done"><b>The reveal.</b> A message graph with players around a circle (tap a player to see only their inbox), arrows for every message, lies in red, and a verdict. A tally across games of "loyal wins at n = 3 vs n = 4".</li>
       <li class="done"><b>Bot players.</b> Fill empty seats with bots (honest or traitor) so two people can play a 4-player game, and a solo "watch it run" mode that loops random games at 3 vs 4 players.</li>
       <li class="done"><b>Signed messages, SM(m).</b> Orders carry a seal that traitors can't forge, only withhold. Show agreement surviving 1 traitor out of 3.</li>
-      <li><b>Write-up.</b> Why 3f + 1 (the indistinguishability argument drawn as two scenarios the loyal lieutenant can't tell apart), fly-by-wire and the Boeing 777's triple-triple architecture, and why Bitcoin swapped identity for proof-of-work.</li>
+      <li class="done"><b>Write-up.</b> Why 3f + 1 (the indistinguishability argument drawn as two scenarios the loyal lieutenant can't tell apart), fly-by-wire and the Boeing 777's triple-triple architecture, and why Bitcoin swapped identity for proof-of-work.</li>
     </ol>
   </div>
 </section>
@@ -112,6 +198,12 @@
       <li>L. Lamport, R. Shostak &amp; M. Pease, “The Byzantine Generals Problem,” <i>ACM TOPLAS</i> 4(3), 1982.</li>
       <li>M. Pease, R. Shostak &amp; L. Lamport, “Reaching agreement in the presence of faults,” <i>J. ACM</i>, 1980.</li>
       <li>Y. C. Yeh, “Triple-triple redundant 777 primary flight computer,” IEEE Aerospace Applications Conference, 1996.</li>
+      <li>M. J. Fischer &amp; N. A. Lynch, “A lower bound for the time to assure interactive consistency,” <i>Information Processing Letters</i> 14(4), 1982.</li>
+      <li>J. H. Wensley et al., “SIFT: Design and analysis of a fault-tolerant computer for aircraft control,” <i>Proc. IEEE</i> 66(10), 1978.</li>
+      <li>K. Driscoll, B. Hall, H. Sivencrona &amp; P. Zumsteg, “Byzantine fault tolerance, from theory to reality,” SAFECOMP 2003.</li>
+      <li>J. R. Douceur, “The Sybil attack,” IPTPS 2002.</li>
+      <li>S. Nakamoto, “Bitcoin: A peer-to-peer electronic cash system,” 2008.</li>
+      <li>M. Castro &amp; B. Liskov, “Practical Byzantine fault tolerance,” OSDI 1999.</li>
     </ul>
   </div>
 </section>
@@ -171,6 +263,16 @@
   .players .p button.who { min-width: 74px; padding: 7px 10px; color: #6d7d90; }
   .players .p button.who.on { color: var(--ir); border-color: var(--ir); background: #182c3a; }
   .wstats { max-width: 620px; font-size: 12.5px; }
+  .proof { padding: 16px 14px 18px; }
+  .proof .pair { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+  .proof figure { flex: 1 1 300px; margin: 0; }
+  .proof svg { width: 100%; max-width: 380px; display: block; margin: 0 auto; }
+  .proof figcaption { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; margin-top: 6px; }
+  .proof figcaption b { color: var(--scr-bright); font-weight: 500; }
+  .proof .must { color: var(--scr-bright); }
+  .proof .o { padding: 0 5px; border-radius: 4px; color: #0b0f14; font-weight: 600; }
+  .proof .o.A { background: var(--caution); } .proof .o.R { background: var(--ir); }
+  .proof .same { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); font-size: 13px; color: var(--scr-bright); line-height: 1.7; }
   .tally { margin-top: 14px; font-size: 12px; color: #6d7d90; }
   .tally b { color: var(--scr-bright); }
 </style>

@@ -30,7 +30,7 @@
 <section>
   <div class="wrap">
     <div class="panel" id="game"><div class="stage" id="stage" aria-live="polite"></div></div>
-    <p class="prose" style="font-size:14px;margin-top:10px">Playable now with one relay round (OM(1)). Any seat can be a bot, so two people can play a 4-player game, and <b>Watch bots play</b> runs 3- and 4-general tables side by side on their own. Signed orders are next in the build plan. Nothing leaves the phone. Names and the win tally are saved only in this browser.</p>
+    <p class="prose" style="font-size:14px;margin-top:10px">Playable with spoken orders (one relay round, OM(1)) or sealed orders (SM(m), one relay round per traitor). Any seat can be a bot, so two people can play a 4-player game, and <b>Watch bots play</b> runs 3- and 4-general tables side by side on their own. Nothing leaves the phone. Names and the win tally are saved only in this browser.</p>
   </div>
 </section>
 
@@ -55,16 +55,24 @@
       player count, so the 3-player vs 4-player difference shows up over a few games.</p>
       <p><strong>Bots:</strong> tap <em>human</em> next to a seat to hand it to the phone. Bots move without a
       pass screen, so nobody learns anything from their turn. A loyal bot follows the protocol like any loyal
-      player. A traitor bot plays perfectly: it tries every combination of lies it could send (up to a few
-      thousand), assumes any traitor still to move will help, and picks a combination that beats the loyal side,
+      player. A traitor bot plays perfectly: it tries every combination of messages it could send (or 4,096
+      random ones in the largest sealed games), assumes any traitor still to move will help, and picks a combination that beats the loyal side,
       if one exists. Set <em>traitors can be</em> to <em>bots only</em> and the humans are all on the same side,
       against the machine.</p>
       <p><strong>Watch bots play</strong> needs no people at all. It deals game after game at 3 and at 4
       generals with a perfect traitor. At 3, the traitor wins about a third of the time. At 4, it searches every
       lie in every game and never finds one that works. That's the theorem, one game at a time.</p>
-      <p><strong>Coming next:</strong> signed orders, where a forged relay is detectable. With
-      signatures, agreement works with any number of traitors. That's the difference between plain
-      voting and what flight computers and blockchains actually do.</p>
+      <p><strong>Sealed orders:</strong> switch <em>orders are</em> to <em>sealed</em>. Now every order carries the
+      commander's seal, and each lieutenant adds their own when they relay it. Nobody can forge a seal, so a traitor
+      lieutenant can only pass the sealed order on or <em>withhold</em> it. A traitor commander can seal both orders, or
+      neither, for anyone, and shares those seals with a fellow traitor. Loyal lieutenants relay every new sealed order they
+      get, one extra round per traitor. At the end, a loyal general holding one order follows it. One holding both
+      orders has proof that the commander lied, and retreats, and so does one holding none. This is Lamport's
+      <em>Signed Messages</em> algorithm, SM(m).</p>
+      <p>With seals, 3 players and 1 traitor stops being a losing game. The trick that beat spoken orders was a
+      lieutenant claiming "the commander told me retreat". Now that claim has to come with the commander's seal on it, and
+      the traitor doesn't have one. In the game, traitors act only in the relay round. That keeps it to one turn each without
+      changing the result: SM(m) is proven to hold even against traitors who act in any round.</p>
     </div>
   </div>
 </section>
@@ -79,7 +87,7 @@
         <ul><li>Traitors choose what to send with two big buttons. Loyal players just confirm the relay.</li></ul></li>
       <li class="done"><b>The reveal.</b> A message graph with players around a circle (tap a player to see only their inbox), arrows for every message, lies in red, and a verdict. A tally across games of "loyal wins at n = 3 vs n = 4".</li>
       <li class="done"><b>Bot players.</b> Fill empty seats with bots (honest or traitor) so two people can play a 4-player game, and a solo "watch it run" mode that loops random games at 3 vs 4 players.</li>
-      <li><b>Signed messages, SM(m).</b> Orders carry a seal that traitors can't forge, only withhold. Show agreement surviving 1 traitor out of 3.</li>
+      <li class="done"><b>Signed messages, SM(m).</b> Orders carry a seal that traitors can't forge, only withhold. Show agreement surviving 1 traitor out of 3.</li>
       <li><b>Write-up.</b> Why 3f + 1 (the indistinguishability argument drawn as two scenarios the loyal lieutenant can't tell apart), fly-by-wire and the Boeing 777's triple-triple architecture, and why Bitcoin swapped identity for proof-of-work.</li>
     </ol>
   </div>
@@ -157,6 +165,9 @@
   table.inbox th, table.inbox td { text-align: left; padding: 6px 8px 6px 0; border-top: 1px solid var(--bezel-edge); vertical-align: top; }
   table.inbox th { color: #6d7d90; font-weight: 400; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
   .lie { color: var(--fault); }
+  .seal { color: #6d7d90; font-size: 11px; }
+  .toggle.X { background: #2a2440 !important; border-color: #b69cff !important; color: #b69cff !important; }
+  .toggle.N { border-style: dashed !important; color: #6d7d90 !important; }
   .players .p button.who { min-width: 74px; padding: 7px 10px; color: #6d7d90; }
   .players .p button.who.on { color: var(--ir); border-color: var(--ir); background: #182c3a; }
   .wstats { max-width: 620px; font-size: 12.5px; }
@@ -205,21 +216,99 @@ function runOM(m, n, commander, traitors, order, traitorSend) {
   return { log, decisions, loyal, agree, followed, win: agree && followed };
 }
 
-/* A worst-case traitor for OM(1): try every combination of the still-open traitor
-   messages (keys "from>to") and pick one at random among those that beat the loyal
-   side. If none exists, it sends coin flips. `fixed` holds messages already sent. */
-function traitorSearch(n, commander, traitors, order, fixed, free) {
-  const wins = [], total = 1 << free.length;
-  for (let mask = 0; mask < total; mask++) {
-    const pick = {};
-    free.forEach((k, i) => { pick[k] = (mask >> i) & 1 ? RETREAT : ATTACK; });
-    const r = runOM(1, n, commander, traitors, order, (f, t) => pick[`${f}>${t}`] || fixed[`${f}>${t}`] || ATTACK);
-    if (!r.win) wins.push(pick);
+/* ================================================================
+   Signed Messages SM(m) — same paper, section 4. Every order carries the
+   commander's seal plus one seal per relay. A traitor can't forge a seal, so
+   a traitor lieutenant can only pass on or withhold what it holds. A traitor
+   commander can seal both orders, and shares its seals with fellow traitors.
+   Loyal lieutenant i collects the set V_i of distinct sealed values; each new
+   value is re-sealed and relayed while it carries fewer than m relay seals.
+   Decision: V_i = {v} → v, otherwise (both or neither) → RETREAT.
+   Traitors act in round 2 only (the relay round); SM(m) needs no such
+   restriction to be correct, it just keeps the hot-seat game to one turn each.
+   traitorSend(from, to, avail) returns the subset of avail that `from` sends.
+   ================================================================ */
+function runSM(m, n, commander, traitors, order, traitorSend) {
+  const lts = [...Array(n).keys()].filter(i => i !== commander);
+  const V = {}; for (const l of lts) V[l] = new Set();
+  const log = [];
+  const cmdT = traitors.has(commander);
+  let inbox = [];
+  for (const l of lts) {
+    const vals = cmdT ? traitorSend(commander, l, [ATTACK, RETREAT]) : [order];
+    if (!vals.length && !traitors.has(l)) log.push({ round: 1, from: commander, to: l, value: null, chain: [commander], traitor: true, withheld: true });
+    for (const v of vals) inbox.push({ round: 1, from: commander, to: l, value: v, chain: [commander], traitor: cmdT });
   }
-  if (wins.length) return { pick: wins[Math.floor(Math.random() * wins.length)], found: true, tried: total, winning: wins.length };
-  const pick = {};
-  for (const k of free) pick[k] = Math.random() < 0.5 ? ATTACK : RETREAT;
-  return { pick, found: false, tried: total, winning: 0 };
+  log.push(...inbox);
+  for (let r = 2; inbox.length; r++) {
+    const out = [];
+    for (const e of inbox) {
+      const i = e.to;
+      if (traitors.has(i) || V[i].has(e.value)) continue;
+      V[i].add(e.value);
+      if (e.chain.length - 1 < m) for (const j of lts) if (j !== i && !e.chain.includes(j))
+        out.push({ round: r, from: i, to: j, value: e.value, chain: e.chain.concat(i), traitor: false });
+    }
+    if (r === 2) for (const t of lts) if (traitors.has(t)) {
+      const held = new Set(cmdT ? [ATTACK, RETREAT] : inbox.filter(e => e.to === t).map(e => e.value));
+      const avail = [ATTACK, RETREAT].filter(v => held.has(v));
+      for (const j of lts) if (j !== t) {
+        const vals = avail.length ? traitorSend(t, j, avail).filter(v => held.has(v)) : [];
+        if (avail.length && !vals.length && !traitors.has(j)) log.push({ round: 2, from: t, to: j, value: null, chain: [commander, t], traitor: true, withheld: true });
+        for (const v of vals) out.push({ round: 2, from: t, to: j, value: v, chain: [commander, t], traitor: true });
+      }
+    }
+    log.push(...out);
+    inbox = out;
+  }
+  const loyal = lts.filter(i => !traitors.has(i));
+  const decisions = {}, sets = {};
+  for (const l of loyal) { sets[l] = [...V[l]].sort(); decisions[l] = V[l].size === 1 ? [...V[l]][0] : RETREAT; }
+  const agree = new Set(loyal.map(l => decisions[l])).size <= 1;
+  const followed = cmdT || loyal.every(l => decisions[l] === order);
+  return { log, decisions, sets, loyal, agree, followed, win: agree && followed, sealed: true };
+}
+
+/* A worst-case traitor: try every combination of choices for the still-open
+   traitor messages (keys "from>to", options per key) and pick one at random
+   among those that beat the loyal side. Past 4,096 combinations it samples at
+   random instead. If nothing wins, it plays a random combination. */
+const SEARCH_CAP = 4096;
+function searchPlans(keys, opts, beats) {
+  const total = keys.reduce((a, k) => a * opts[k].length, 1);
+  const exhaustive = total <= SEARCH_CAP, tries = exhaustive ? total : SEARCH_CAP;
+  const rnd = k => opts[k][Math.floor(Math.random() * opts[k].length)];
+  const wins = [];
+  for (let t = 0; t < tries; t++) {
+    const pick = {}; let x = t;
+    for (const k of keys) {
+      if (exhaustive) { pick[k] = opts[k][x % opts[k].length]; x = Math.floor(x / opts[k].length); }
+      else pick[k] = rnd(k);
+    }
+    if (beats(pick)) wins.push(pick);
+  }
+  if (wins.length) return { pick: wins[Math.floor(Math.random() * wins.length)], found: true, tried: tries, winning: wins.length };
+  const pick = {}; for (const k of keys) pick[k] = rnd(k);
+  return { pick, found: false, tried: tries, winning: 0 };
+}
+const BOTH = [ATTACK, RETREAT];
+/* what a traitor could put on key "from>to": spoken orders are one word; sealed
+   ones are any subset of the seals it holds */
+function keyOptions(sealed, from, commander, traitors, order) {
+  if (!sealed) return [ATTACK, RETREAT];
+  const held = from === commander || traitors.has(commander) ? BOTH : [order];
+  return held.length === 2 ? [[ATTACK], [RETREAT], [ATTACK, RETREAT], []] : [held, []];
+}
+/* play one game with the protocol for `sealed` (OM(1) or SM(m)), reading traitor
+   choices from pick, then fixed, then a default */
+function playGame(sealed, m, n, commander, traitors, order, pick, fixed) {
+  if (!sealed) return runOM(1, n, commander, traitors, order, (f, t) => pick[`${f}>${t}`] || fixed[`${f}>${t}`] || ATTACK);
+  return runSM(m, n, commander, traitors, order, (f, t, avail) => pick[`${f}>${t}`] || fixed[`${f}>${t}`] || avail);
+}
+function traitorSearch(sealed, m, n, commander, traitors, order, fixed, free) {
+  const opts = {};
+  for (const k of free) opts[k] = keyOptions(sealed, +k.split('>')[0], commander, traitors, order);
+  return searchPlans(free, opts, pick => !playGame(sealed, m, n, commander, traitors, order, pick, fixed).win);
 }
 /* the message keys a player controls in OM(1) */
 function msgKeys(p, commander, lts) {
@@ -243,9 +332,19 @@ function msgKeys(p, commander, lts) {
   bots.length = names.length;
   let nTraitors = 1;
   let botTraitors = store.get('botTraitors', false);   // true: only bots may be dealt a traitor role
+  let sealed = store.get('sealed', false);              // false: OM(1) spoken orders; true: SM(m) sealed orders
   let G = null;           // current game
+  const minFor2 = s => s ? 4 : 5;                        // fewest players the setup allows with 2 traitors
 
-  function theoryLine(n, t) {
+  /* a set of sealed orders, for buttons and tables */
+  const setWord = v => !v.length ? 'NOTHING' : v.length === 2 ? 'BOTH' : WORD[v[0]];
+  const setCls = v => !v.length ? 'N' : v.length === 2 ? 'X' : v[0];
+  const sealTxt = (chain, cmd) => chain.map(c => c === cmd ? '★' : c + 1).join('·');
+
+  function theoryLine(n, t, sl) {
+    if (sl) return t === 1
+      ? `<b style="color:var(--sig)">Sealed orders, ${n} players, 1 traitor:</b> a traitor can hide a seal but never fake one, so one relay round is enough${n === 3 ? ', even with only 3 players. Spoken orders need 4' : ''}.`
+      : `<b style="color:var(--sig)">Sealed orders, ${n} players, 2 traitors:</b> two relay rounds, one per traitor, and the loyal generals always agree. Spoken orders would need 7 players.`;
     if (t === 1 && n >= 4) return `<b class="ok" style="color:var(--sig)">${n} players, 1 traitor:</b> one relay round is enough. The loyal generals will always agree, whatever the traitor does.`;
     if (t === 1) return `<b style="color:var(--fault)">3 players, 1 traitor:</b> the loyal side can be beaten, and no rule the loyal players could follow would fix it. You need at least 4.`;
     return `<b style="color:var(--caution)">${n} players, 2 traitors:</b> this game runs one relay round, which only handles one traitor. Two traitors need two rounds <i>and</i> at least 7 players.`;
@@ -254,12 +353,12 @@ function msgKeys(p, commander, lts) {
   /* ---------------- setup ---------------- */
   function setup() {
     const n = names.length;
-    if (nTraitors === 2 && n < 5) nTraitors = 1;
+    if (nTraitors === 2 && n < minFor2(sealed)) nTraitors = 1;
     const nBots = bots.filter(Boolean).length, humans = n - nBots;
     const tally = store.get('tally', {});
     const tallyTxt = Object.keys(tally).sort().map(k => {
-      const [nn, tt] = k.split('-'); const r = tally[k];
-      return `<b>${nn}</b> players · ${tt} traitor${tt > 1 ? 's' : ''}: loyal won <b>${r.w}</b> of ${r.g}`;
+      const [nn, tt, ss] = k.split('-'); const r = tally[k];
+      return `<b>${nn}</b> players · ${tt} traitor${tt > 1 ? 's' : ''} · ${ss ? 'sealed' : 'spoken'}: loyal won <b>${r.w}</b> of ${r.g}`;
     }).join('<br>');
     stage.innerHTML = `
       <h4>Muster the generals</h4>
@@ -275,15 +374,20 @@ function msgKeys(p, commander, lts) {
         <span style="margin-left:8px">traitors</span>
         <span class="seg2">
           <button data-t="1" class="${nTraitors === 1 ? 'on' : ''}">1</button>
-          <button data-t="2" class="${nTraitors === 2 ? 'on' : ''}" ${n < 5 ? 'disabled title="needs 5+ players"' : ''}>2</button>
+          <button data-t="2" class="${nTraitors === 2 ? 'on' : ''}" ${n < minFor2(sealed) ? `disabled title="needs ${minFor2(sealed)}+ players"` : ''}>2</button>
         </span>
       </div>
+      <div class="row"><span>orders are</span>
+        <span class="seg2">
+          <button data-s="0" class="${!sealed ? 'on' : ''}">spoken</button>
+          <button data-s="1" class="${sealed ? 'on' : ''}">sealed</button>
+        </span></div>
       ${nBots ? `<div class="row"><span>traitors can be</span>
         <span class="seg2">
           <button data-bt="0" class="${!botTraitors ? 'on' : ''}">anyone</button>
           <button data-bt="1" class="${botTraitors ? 'on' : ''}" ${nBots < nTraitors ? 'disabled title="not enough bots"' : ''}>bots only</button>
         </span></div>` : ''}
-      <div class="theory">${theoryLine(n, nTraitors)}${nBots ? ` Bot traitors play perfectly: they try every possible lie and pick one that wins, if any does.` : ''}</div>
+      <div class="theory">${theoryLine(n, nTraitors, sealed)}${nBots ? ` Bot traitors play perfectly: they try every possible ${sealed ? 'plan' : 'lie'} and pick one that wins, if any does.` : ''}</div>
       <div class="row"><button class="primary" id="t-start" ${humans ? '' : 'disabled'}>Deal secret roles →</button>
         <button id="t-watch">Watch bots play</button></div>
       ${humans ? '' : '<p style="margin-top:8px;font-size:12px">Every seat is a bot. Make at least one seat human, or watch the bots play on their own.</p>'}
@@ -302,6 +406,7 @@ function msgKeys(p, commander, lts) {
       save(); setup();
     });
     stage.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { nTraitors = +b.dataset.t; setup(); });
+    stage.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { sealed = b.dataset.s === '1'; store.set('sealed', sealed); setup(); });
     stage.querySelectorAll('[data-bt]').forEach(b => b.onclick = () => { botTraitors = b.dataset.bt === '1'; store.set('botTraitors', botTraitors); setup(); });
     stage.querySelector('#t-start').onclick = start;
     stage.querySelector('#t-watch').onclick = watch;
@@ -321,7 +426,7 @@ function msgKeys(p, commander, lts) {
     const traitors = new Set(idx.slice(0, nTraitors));
     // commander goes first, then everyone else in seating order
     const order = [commander, ...[...Array(n).keys()].map(k => (commander + 1 + k) % n).slice(0, n - 1)];
-    G = { n, commander, traitors, order, turn: 0, choice: {}, cmdOrder: null, got: {} };
+    G = { n, commander, traitors, order, turn: 0, choice: {}, cmdOrder: null, sealed, m: sealed ? nTraitors : 1 };
     pass();
   }
 
@@ -370,6 +475,8 @@ function msgKeys(p, commander, lts) {
     }
     // traitor commander: a separate order per lieutenant
     G.cmdOrder = ATTACK;
+    if (G.sealed) return sealedTurn(p, lts, [ATTACK, RETREAT],
+      `You seal the orders, so you can seal <b>either</b> order, <b>both</b>, or <b>nothing</b> for each lieutenant. Tap to cycle.`, 'to');
     for (const l of lts) G.choice[`${p}>${l}`] = G.choice[`${p}>${l}`] || ATTACK;
     const draw = () => {
       stage.innerHTML = roleBlock(p) + `
@@ -398,11 +505,31 @@ function msgKeys(p, commander, lts) {
     // plan jointly with the traitors still to move, assuming they'll cooperate
     const own = msgKeys(p, G.commander, lts);
     const later = G.order.slice(G.turn + 1).filter(q => G.traitors.has(q)).flatMap(q => msgKeys(q, G.commander, lts));
-    const plan = traitorSearch(G.n, G.commander, G.traitors, G.cmdOrder, G.choice, own.concat(later)).pick;
+    const plan = traitorSearch(G.sealed, G.m, G.n, G.commander, G.traitors, G.cmdOrder, G.choice, own.concat(later)).pick;
     for (const k of own) G.choice[k] = plan[k];
   }
 
+  /* sealed-order traitor turn: per recipient, cycle through the subsets of seals held */
+  function sealedTurn(p, targets, held, blurb, verb, intro = '') {
+    const opts = held.length === 2 ? [[ATTACK], [RETREAT], [ATTACK, RETREAT], []] : [held, []];
+    for (const q of targets) G.choice[`${p}>${q}`] = G.choice[`${p}>${q}`] || opts[0];
+    const draw = () => {
+      stage.innerHTML = roleBlock(p) + intro + `<p style="margin-top:14px">${blurb}</p>
+        ${targets.map(q => { const v = G.choice[`${p}>${q}`]; return `
+          <div class="msg"><span>${verb} ${esc(names[q])}${G.traitors.has(q) ? ' <span class="lie">(traitor)</span>' : ''}</span>
+          <button class="toggle ${setCls(v)}" data-q="${q}">${setWord(v)}</button></div>`; }).join('')}
+        ${done()}`;
+      stage.querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+        const k = `${p}>${b.dataset.q}`, i = opts.findIndex(o => o.join() === G.choice[k].join());
+        G.choice[k] = opts[(i + 1) % opts.length]; draw();
+      });
+      stage.querySelector('#t-done').onclick = next;
+    };
+    draw();
+  }
+
   function lieutenantTurn(p) {
+    if (G.sealed) return sealedLieutenant(p);
     const heard = G.choice[`${G.commander}>${p}`];
     const others = G.order.slice(1).filter(q => q !== p);
     const intro = `<p style="margin-top:14px">${esc(names[G.commander])} told you: <span class="order ${heard}">${WORD[heard]}</span></p>`;
@@ -432,11 +559,31 @@ function msgKeys(p, commander, lts) {
     draw();
   }
 
+  function sealedLieutenant(p) {
+    const cmdT = G.traitors.has(G.commander);
+    const got = cmdT ? G.choice[`${G.commander}>${p}`] : [G.cmdOrder];
+    const others = G.order.slice(1).filter(q => q !== p);
+    const seals = got.length ? got.map(v => `<span class="order ${v}">${WORD[v]}</span>`).join(' ') + ` <span style="color:#6d7d90">sealed by ${esc(names[G.commander])}</span>` : '<b>nothing</b>';
+    const intro = `<p style="margin-top:14px">${esc(names[G.commander])} sent you: ${seals}</p>`;
+    if (!G.traitors.has(p)) {
+      stage.innerHTML = roleBlock(p) + intro + `
+        <p>You're loyal. Every new sealed order you receive is added to your seal and passed on to the other lieutenants automatically${G.m > 1 ? `, for up to ${G.m} rounds of relays` : ''}.</p>
+        <p>You don't choose your action. If every sealed order you end up holding says the same thing, you follow it. If you hold both, or none, the commander is provably lying or silent, and you retreat.</p>
+        ${done()}`;
+      stage.querySelector('#t-done').onclick = next;
+      return;
+    }
+    const held = cmdT ? [ATTACK, RETREAT] : got;
+    sealedTurn(p, others, held, cmdT
+      ? `The commander is on your side and gave you both seals. For each lieutenant, pass on <b>either</b> order, <b>both</b>, or <b>nothing</b>. Tap to cycle.`
+      : `You can't forge the commander's seal. All you can do is pass the sealed order on or <b>withhold</b> it. Tap to switch.`, 'to', intro);
+  }
+
   function passToTable() {
     stage.innerHTML = `
       <div class="sub">all orders sent</div>
       <h4>Put the phone in the middle</h4>
-      <p>Every message has been delivered. Each loyal lieutenant now acts on the majority of what they heard.</p>
+      <p>Every message has been delivered. ${G.sealed ? 'Each loyal lieutenant now looks at the distinct sealed orders they hold.' : 'Each loyal lieutenant now acts on the majority of what they heard.'}</p>
       <div class="row"><button class="primary big" id="t-rev">Reveal everything</button></div>`;
     stage.querySelector('#t-rev').onclick = reveal;
   }
@@ -444,13 +591,12 @@ function msgKeys(p, commander, lts) {
   /* ---------------- reveal ---------------- */
   let R = null, sel = -1;
   function reveal() {
-    const res = runOM(1, G.n, G.commander, G.traitors, G.cmdOrder,
-      (from, to) => G.choice[`${from}>${to}`] || ATTACK);
+    const res = playGame(G.sealed, G.m, G.n, G.commander, G.traitors, G.cmdOrder, {}, G.choice);
     // a traitor commander has no true order, so its round-1 messages aren't 'lies', just red
     if (G.traitors.has(G.commander)) for (const e of res.log) if (e.round === 1) e.lie = false;
     G.res = res;
     // tally per (players, traitors)
-    const key = `${G.n}-${G.traitors.size}`, tally = store.get('tally', {});
+    const key = `${G.n}-${G.traitors.size}${G.sealed ? '-s' : ''}`, tally = store.get('tally', {});
     tally[key] = tally[key] || { g: 0, w: 0 }; tally[key].g++; if (res.win) tally[key].w++;
     store.set('tally', tally);
 
@@ -469,11 +615,18 @@ function msgKeys(p, commander, lts) {
       <div class="sub">the reveal</div>
       <div class="verdict ${res.win ? 'win' : 'lose'}">${res.win ? 'The loyal generals win' : 'The traitors win'}</div>
       <p>${why} The traitor${G.traitors.size > 1 ? 's were' : ' was'} <b class="lie">${esc(tNames)}</b>.</p>
-      <p style="margin-top:8px">${theoryLine(G.n, G.traitors.size)}</p>
+      <p style="margin-top:8px">${theoryLine(G.n, G.traitors.size, G.sealed)}</p>
       <div class="graph"><canvas id="t-graph" aria-label="Every message sent, drawn as arrows between players"></canvas></div>
-      <div class="legend">Tap a general to see only what they heard. <span style="color:var(--caution)">■</span> attack <span style="color:var(--ir)">■</span> retreat · red arrows come from traitors · ✗ marks a lie</div>
-      <table class="inbox"><tr><th>loyal lieutenant</th><th>heard</th><th>acted on</th></tr>
+      <div class="legend">Tap a general to see only what they heard. <span style="color:var(--caution)">■</span> attack <span style="color:var(--ir)">■</span> retreat · red arrows come from traitors · ${G.sealed ? 'dashed ∅ is a withheld seal' : '✗ marks a lie'}</div>
+      <table class="inbox"><tr><th>loyal lieutenant</th><th>${G.sealed ? 'sealed orders received' : 'heard'}</th><th>acted on</th></tr>
         ${loyal.map(l => {
+          if (G.sealed) {
+            const heard = res.log.filter(e => e.to === l).map(e => e.withheld
+              ? `${esc(names[e.from])} <span class="lie">withheld</span>`
+              : `<span class="order ${e.value}" style="min-width:0;padding:0 5px">${e.value}</span> <span class="seal">${sealTxt(e.chain, G.commander)}</span>`).join(' · ');
+            const set = res.sets[l];
+            return `<tr><td>${esc(names[l])}${bots[l] ? ' <span style="color:#6d7d90">(bot)</span>' : ''}</td><td>${heard || '—'}</td><td>{${set.join(', ')}} → <span class="order ${dec[l]}">${WORD[dec[l]]}</span></td></tr>`;
+          }
           const heard = res.log.filter(e => e.to === l).map(e => `${esc(names[e.from])} <span class="order ${e.value}" style="min-width:0;padding:0 5px">${e.value}</span>${e.lie ? '<span class="lie">✗</span>' : ''}`).join(' · ');
           return `<tr><td>${esc(names[l])}${bots[l] ? ' <span style="color:#6d7d90">(bot)</span>' : ''}</td><td>${heard}</td><td><span class="order ${dec[l]}">${WORD[dec[l]]}</span></td></tr>`;
         }).join('')}
@@ -509,22 +662,25 @@ function msgKeys(p, commander, lts) {
     ctx.fillStyle = '#0b0f14'; ctx.fillRect(0, 0, w, h);
     R.pos = paintGraph(ctx, 0, 0, w, h, { ...G, names }, sel);
   }
-  function arrow(ctx, x0, y0, x1, y1, off, col, width, value, lie, alpha) {
+  function arrow(ctx, x0, y0, x1, y1, off, col, width, value, lie, alpha, at = 0.72) {
     const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
     const nx = -uy * off, ny = ux * off;
     const sx = x0 + ux * 22 + nx, sy = y0 + uy * 22 + ny, ex = x1 - ux * 24 + nx, ey = y1 - uy * 24 + ny;
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = col; ctx.lineWidth = width;
+    if (value === null) ctx.setLineDash([4, 4]);     // a withheld seal
     ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle = col; ctx.beginPath();
     ctx.moveTo(ex, ey); ctx.lineTo(ex - ux * 8 - uy * 4, ey - uy * 8 + ux * 4); ctx.lineTo(ex - ux * 8 + uy * 4, ey - uy * 8 - ux * 4); ctx.closePath(); ctx.fill();
-    // value chip three-quarters of the way along
-    const tx = sx + (ex - sx) * 0.72, ty = sy + (ey - sy) * 0.72;
-    ctx.fillStyle = value === ATTACK ? '#ffc861' : '#69c9ff';
+    // value chip most of the way along (earlier for a second message on the same edge)
+    const tx = sx + (ex - sx) * at, ty = sy + (ey - sy) * at;
+    ctx.fillStyle = value === ATTACK ? '#ffc861' : value === RETREAT ? '#69c9ff' : '#2a3542';
     ctx.beginPath(); ctx.arc(tx, ty, 7.5, 0, Math.PI * 2); ctx.fill();
     if (lie) { ctx.strokeStyle = '#ff6b5b'; ctx.lineWidth = 2; ctx.stroke(); }
     ctx.fillStyle = '#0b0f14'; ctx.font = '600 9.5px ui-monospace, Menlo, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(value, tx, ty + .5);
+    if (value === null) ctx.fillStyle = '#ff6b5b';
+    ctx.fillText(value === null ? '∅' : value, tx, ty + .5);
     ctx.globalAlpha = 1;
   }
   /* one game's message graph in the box (ox, oy, w, h); g = {n, order, commander, traitors, res, names}.
@@ -538,11 +694,13 @@ function msgKeys(p, commander, lts) {
     const res = g.res;
     const focus = e => sel < 0 || e.to === sel;
     // relays first (under), then the commander's orders on top
+    const seen = {};
     for (const e of [...res.log].sort((a, b) => b.round - a.round)) {
       const [x0, y0] = pos[e.from], [x1, y1] = pos[e.to];
-      const off = e.round === 1 ? 0 : 5;
+      const off = e.round === 1 ? 0 : e.round === 2 ? 5 : 10;
       const col = e.traitor ? '#ff6b5b' : 'rgba(159,176,195,.55)';
-      arrow(ctx, x0, y0, x1, y1, off, col, e.round === 1 ? 2 : 1.3, e.value, e.lie, focus(e) ? 1 : 0.07);
+      const k = `${e.from}>${e.to}:${e.round}`, nth = seen[k] = (seen[k] ?? -1) + 1;
+      arrow(ctx, x0, y0, x1, y1, off, col, e.round === 1 ? 2 : 1.3, e.value, e.lie, focus(e) ? 1 : 0.07, 0.72 - 0.2 * nth - (e.round > 2 ? 0.14 : 0));
     }
     ctx.textBaseline = 'alphabetic';
     for (let p = 0; p < g.n; p++) {
@@ -575,46 +733,54 @@ function msgKeys(p, commander, lts) {
 
   /* ---------------- watch it run: bots only, 3 vs 4 generals ---------------- */
   let W = null;
-  function botGame(n, clever) {
+  function botGame(n, clever, sl) {
     const commander = Math.floor(Math.random() * n);
     const traitor = Math.floor(Math.random() * n), traitors = new Set([traitor]);
     const order = [commander, ...[...Array(n - 1).keys()].map(k => (commander + 1 + k) % n)];
     const cmd = Math.random() < 0.5 ? ATTACK : RETREAT;
     const lts = order.slice(1), free = msgKeys(traitor, commander, lts);
     let s;
-    if (clever) s = traitorSearch(n, commander, traitors, cmd, {}, free);
-    else { const pick = {}; for (const k of free) pick[k] = Math.random() < 0.5 ? ATTACK : RETREAT; s = { pick, tried: 1 }; }
-    const res = runOM(1, n, commander, traitors, cmd, (f, t) => s.pick[`${f}>${t}`]);
+    if (clever) s = traitorSearch(sl, 1, n, commander, traitors, cmd, {}, free);
+    else {
+      const pick = {};
+      for (const k of free) { const o = keyOptions(sl, traitor, commander, traitors, cmd); pick[k] = o[Math.floor(Math.random() * o.length)]; }
+      s = { pick, tried: 1 };
+    }
+    const res = playGame(sl, 1, n, commander, traitors, cmd, s.pick, {});
     if (traitor === commander) for (const e of res.log) if (e.round === 1) e.lie = false;
     return { n, commander, traitors, order, cmd, res, tried: s.tried, names: [...Array(n).keys()].map(i => 'general ' + (i + 1)) };
   }
   function watch() {
     const fresh = () => ({ 3: { g: 0, w: 0, tried: 0 }, 4: { g: 0, w: 0, tried: 0 } });
-    W = W || { clever: true, fast: false, playing: true, t: fresh(), last: {} };
+    W = W || { clever: true, sealed: false, fast: false, playing: true, t: fresh(), last: {} };
     W.playing = true;
     stage.innerHTML = `
       <div class="sub">solo · bots only · one traitor at each table</div>
       <h4>Watch it run</h4>
       <p>Two tables play over and over: one with 3 generals, one with 4. Each game deals a random commander, traitor,
-      and order. A perfect traitor tries every lie it could tell and picks one that works, if any does.</p>
+      and order. A perfect traitor tries every move it could make and picks one that works, if any does.</p>
       <div class="row">
         <button id="w-play" style="min-width:92px"></button>
         <span class="seg2"><button data-sp="0">1 game/s</button><button data-sp="1">fast</button></span>
         <span class="seg2"><button data-cl="1">perfect traitor</button><button data-cl="0">coin-flip traitor</button></span>
+        <span class="seg2"><button data-ws="0">spoken orders</button><button data-ws="1">sealed orders</button></span>
         <button id="w-reset">reset</button>
       </div>
       <div class="graph"><canvas id="w-graph" aria-label="The latest game at each table, drawn as arrows between generals"></canvas></div>
-      <div class="legend"><span style="color:var(--caution)">■</span> attack <span style="color:var(--ir)">■</span> retreat · red arrows come from the traitor · ✗ marks a lie</div>
+      <div class="legend" id="w-legend"></div>
       <p class="wstats" id="w-stats" style="margin-top:12px"></p>
       <div class="row"><button id="w-back">← Back to setup</button></div>`;
     const sync = () => {
       stage.querySelector('#w-play').textContent = W.playing ? '❚❚ pause' : '▶ play';
       stage.querySelectorAll('[data-sp]').forEach(b => b.classList.toggle('on', (b.dataset.sp === '1') === W.fast));
       stage.querySelectorAll('[data-cl]').forEach(b => b.classList.toggle('on', (b.dataset.cl === '1') === W.clever));
+      stage.querySelectorAll('[data-ws]').forEach(b => b.classList.toggle('on', (b.dataset.ws === '1') === W.sealed));
+      stage.querySelector('#w-legend').innerHTML = `<span style="color:var(--caution)">■</span> attack <span style="color:var(--ir)">■</span> retreat · red arrows come from the traitor · ${W.sealed ? 'dashed ∅ is a withheld seal' : '✗ marks a lie'}`;
     };
     stage.querySelector('#w-play').onclick = () => { W.playing = !W.playing; sync(); };
     stage.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { W.fast = b.dataset.sp === '1'; sync(); });
     stage.querySelectorAll('[data-cl]').forEach(b => b.onclick = () => { W.clever = b.dataset.cl === '1'; W.t = fresh(); W.last = {}; step(); sync(); });
+    stage.querySelectorAll('[data-ws]').forEach(b => b.onclick = () => { W.sealed = b.dataset.ws === '1'; W.t = fresh(); W.last = {}; step(); sync(); });
     stage.querySelector('#w-reset').onclick = () => { W.t = fresh(); W.last = {}; step(); };
     stage.querySelector('#w-back').onclick = () => { W.playing = false; setup(); };
     sync(); sizeWatch(); if (W.last[3]) { drawWatch(); stats(); } else step();
@@ -634,7 +800,7 @@ function msgKeys(p, commander, lts) {
   }
   function step(k = 1) {
     for (let i = 0; i < k; i++) for (const n of [3, 4]) {
-      const g = botGame(n, W.clever), t = W.t[n];
+      const g = botGame(n, W.clever, W.sealed), t = W.t[n];
       t.g++; if (g.res.win) t.w++; t.tried += g.tried; W.last[n] = g;
     }
     drawWatch(); stats();
@@ -677,7 +843,10 @@ function msgKeys(p, commander, lts) {
     const a = W.t[3], b = W.t[4];
     if (!a.g) { el.innerHTML = ''; return; }
     const pct = r => Math.round(100 * r.w / r.g) + '%';
-    el.innerHTML = W.clever
+    el.innerHTML = W.sealed
+      ? `With <b>sealed orders</b> the ${W.clever ? 'perfect' : 'coin-flip'} traitor won <b style="color:${a.w === a.g ? 'var(--sig)' : 'var(--fault)'}">${a.g - a.w}</b> of ${a.g} games at <b>3 generals</b>${W.clever ? `, after trying <b>${a.tried.toLocaleString('en-US')}</b> plans` : ''}, and <b>${b.g - b.w}</b> of ${b.g} at 4.
+         <span style="color:#6d7d90">It can withhold a seal or, as commander, seal both orders, but it can't make a loyal general's copy of an order say something else. Two different sealed orders prove the commander is the traitor, and every loyal general sees the same proof.</span>`
+      : W.clever
       ? `At <b>3 generals</b> the traitor found a winning lie in <b style="color:var(--fault)">${a.g - a.w}</b> of ${a.g} games (loyal won ${pct(a)}).
          At <b>4 generals</b> it tried <b>${b.tried.toLocaleString('en-US')}</b> possible lies across ${b.g} games and won <b style="color:${b.w === b.g ? 'var(--sig)' : 'var(--fault)'}">${b.g - b.w}</b>.
          <span style="color:#6d7d90">Expect about a third of 3-player games lost: the traitor only wins when the commander is loyal and orders attack. It then tells the other lieutenant "retreat", the tie breaks to retreat, and a loyal general ignores a loyal order.</span>`

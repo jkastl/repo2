@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light Through a Finger · Tolerance</title>
+<meta name="description" content="How a pulse oximeter reads oxygen, what fools it, and your own pulse through the camera.">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M8 40 L18 40 L22 28 L27 50 L32 14 L37 44 L41 34 L56 34' fill='none' stroke='%236ee7a0' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Light Through a Finger · Tolerance">
+<meta property="og:description" content="How a pulse oximeter reads oxygen, what fools it, and your own pulse through the camera.">
+<meta property="og:url" content="https://jkastl.github.io/tolerance/pulse-ox/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body class="solo">
+<div class="wrap crumb"><a href="../">← Tolerance</a> · exhibit 05 of 06</div>
+<main>
+<section class="ex" id="pulse">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">05</span><h2>Light Through a Finger</h2></div>
+    <div class="ex-sub">pulse oximetry · Takuo Aoyagi, Nihon Kohden, 1972</div>
+    <div class="prose">
+      <p>A fingertip clip shines red (660&nbsp;nm) and infrared (940&nbsp;nm) light through skin, fat,
+      bone, venous blood, nail polish, and arterial blood, all at once. It wants one thing out of
+      that pile: what fraction of the hemoglobin in your <em>arteries</em> is carrying oxygen.
+      Oxygenated blood is bright red and deoxygenated blood is dark, and at 940&nbsp;nm the
+      difference reverses.</p>
+      <p>Aoyagi's insight was to ignore everything that <em>doesn't pulse</em>. Only arterial blood swells
+      with each heartbeat. Divide each color's pulsing part (AC) by its steady part (DC), then divide
+      red by infrared. Skin, bone, and venous blood cancel out of that <strong>ratio of ratios</strong>, and what's left
+      depends only on oxygen saturation.</p>
+    </div>
+    <div class="panel">
+      <div class="screens">
+        <div class="screen"><canvas id="ox-mon" aria-label="Pulse oximeter monitor: red and infrared waveforms, SpO2 and heart rate"></canvas></div>
+        <div class="screen"><canvas id="ox-cal" aria-label="Calibration curve from ratio R to oxygen saturation"></canvas></div>
+      </div>
+      <div class="controls">
+        <div class="ctl"><label for="ox-s">true arterial O₂ <b id="ox-s-v"></b></label>
+          <input type="range" id="ox-s" min="60" max="100" step="1" value="97"></div>
+        <div class="ctl"><label for="ox-pi">perfusion <b id="ox-pi-v"></b></label>
+          <input type="range" id="ox-pi" min="0.1" max="5" step="0.05" value="2"></div>
+        <div class="ctl"><label for="ox-m">hand motion <b id="ox-m-v"></b></label>
+          <input type="range" id="ox-m" min="0" max="1" step="0.01" value="0"></div>
+        <div class="ctl"><label for="ox-hr">heart rate <b id="ox-hr-v"></b></label>
+          <input type="range" id="ox-hr" min="40" max="160" step="1" value="68"></div>
+        <div class="btns"><button id="ox-cam">use my camera</button></div>
+      </div>
+      <div class="note" id="ox-note">Simulated finger. <b>use my camera</b> swaps in your own pulse: cover the rear camera (and flash, if your phone lets the page turn it on) with a fingertip and hold still. Video never leaves this page.</div>
+      <video id="ox-video" class="hidden" playsinline muted></video>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Drop the true O₂ to 85 and watch the red trace grow relative to infrared. That growing red swing <em>is</em> the measurement.</li>
+        <li>Turn on <b>hand motion</b>. Motion changes the light path for both colors by the same fraction, which pushes <em>R</em> toward 1, and here that reads as about 74%. Real oximeters show the same thing (their R&nbsp;=&nbsp;1 sits near 82–85%), which is why a patient scratching their nose can set off a desaturation alarm.</li>
+        <li>Make the finger cold (low perfusion). The pulsing signal shrinks toward the noise floor and the reading starts wandering, even though nothing about the blood changed.</li>
+        <li>Press <b>use my camera</b>. A phone can get your heart rate, but not SpO₂: its camera sees broad color bands with no known wavelengths, and it has no calibration against real blood.</li>
+      </ol>
+    </div>
+    <div class="deep">
+      <h3>The deep cut</h3>
+      <p>The ratio-of-ratios argument says skin pigment should cancel out, like everything else that doesn't pulse. In
+      practice it doesn't fully cancel. In 2020, Sjoding and colleagues in the <em>NEJM</em> compared
+      pulse-ox readings to arterial blood gases drawn at the same time. Among patients whose oximeter read a reassuring 92–96%, the
+      blood was actually below 88% for <b>11.7%</b> of Black patients versus <b>3.6%</b> of White patients.</p>
+      <p>The calibration curve on the right isn't pure physics. Real light scatters instead of passing
+      straight through, so every device maps R to SpO₂ with an <em>empirical</em> curve fitted on
+      volunteers, and historically those volunteers were mostly light-skinned. You can't reproduce that
+      bias with this simulator, and that's the lesson: the simple model assumes the effect away, just
+      as the calibration did. It's the same dataset-shift problem as a model trained at one hospital
+      and deployed at another. Carbon monoxide works similarly: CO-bound hemoglobin looks nearly the
+      same as oxyhemoglobin at 660&nbsp;nm, so a two-wavelength oximeter reports a
+      poisoned patient as fine.</p>
+    </div>
+  </div>
+</section>
+</main>
+<nav class="pager wrap" aria-label="Exhibits"><a class="prev" href="../kalman/">←<span class="n">04</span>Two Wrong Answers</a><a class="home" href="../">all exhibits</a><a class="next" href="../bufferbloat/">Drop It on Purpose<span class="n">06</span>→</a></nav>
+<footer class="page-foot">
+  <div class="wrap">
+    <div class="refs">
+      <h3>Reading</h3>
+      <ul>
+        <li>M. W. Sjoding et al., “Racial bias in pulse oximetry measurement,” <i>NEJM</i> 383:2477, 2020.</li>
+      </ul>
+    </div>
+    <p class="colophon">Everything on this page runs in your browser with no network calls. Shared code: <a href="../core.js">core.js</a>. <a href="https://github.com/jkastl/tolerance">Source</a>.</p>
+  </div>
+</footer>
+<script src="../core.js"></script>
+<script>
+"use strict";
+/* ================================================================
+   05 · LIGHT THROUGH A FINGER — pulse oximetry (+ camera PPG)
+   ================================================================ */
+(() => {
+  const mon = $('#ox-mon'), cal = $('#ox-cal');
+  const sIn = $('#ox-s'), piIn = $('#ox-pi'), mIn = $('#ox-m'), hrIn = $('#ox-hr'), camBtn = $('#ox-cam');
+  const video = $('#ox-video');
+  // molar extinction coefficients (cm⁻¹/M), Prahl's tabulation
+  const E = { r: { o: 319.6, d: 3226.56 }, i: { o: 1214, d: 693.44 } };
+  const eR = S => S * E.r.o + (1 - S) * E.r.d;
+  const eI = S => S * E.i.o + (1 - S) * E.i.d;
+  const Rof = S => eR(S) / eI(S);
+  const Sof = R => (E.r.d - R * E.i.d) / (R * (E.i.o - E.i.d) - (E.r.o - E.r.d));
+  const FS = 100, WIN = 5 * FS;
+  let M, Cc;
+  let S = +sIn.value / 100, PI = +piIn.value, motion = +mIn.value, HR = +hrIn.value;
+  let phase = 0, t = 0, mw = [0], mph = [Math.random() * TAU, Math.random() * TAU];
+  const red = [], irr = [];
+  let reading = { spo2: null, hr: null, R: null };
+  let procTimer = 0;
+  // camera state
+  let cam = null;
+
+  function pulseShape(ph) {
+    // sharp systolic upstroke, slow run-off, and a dicrotic bump
+    const up = ph < 0.16 ? Math.exp(-Math.pow((ph - 0.16) / 0.06, 2)) : 0;
+    const down = ph >= 0.16 ? Math.exp(-(ph - 0.16) / 0.3) : 0;
+    const notch = 0.22 * Math.exp(-Math.pow((ph - 0.45) / 0.07, 2));
+    return up + down * 0.9 + notch;
+  }
+  function simSample(dt) {
+    t += dt;
+    phase += dt * HR / 60 * (1 + 0.03 * Math.sin(t * 0.9));
+    if (phase >= 1) phase -= 1;
+    const g = pulseShape(phase);
+    const k = (PI / 100) / eI(0.97);           // pulsatile absorbance scale
+    const dAr = g * k * eR(S), dAi = g * k * eI(S);
+    // hand motion: same fractional change of light path for both colours
+    mw[0] += (gauss() * 0.9 - mw[0] * 0.8) * dt * 3;
+    const m = motion * 0.035 * (Math.sin(TAU * 1.3 * t + mph[0]) + 0.7 * Math.sin(TAU * 2.2 * t + mph[1]) + 1.5 * mw[0]);
+    const nz = 0.00012;
+    red.push(0.55 * Math.exp(-dAr) * (1 + m) + nz * gauss());
+    irr.push(1.0 * Math.exp(-dAi) * (1 + m) + nz * gauss());
+    if (red.length > WIN) { red.shift(); irr.shift(); }
+  }
+
+  function stats(x) {
+    let mu = 0; for (const v of x) mu += v; mu /= x.length;
+    let sd = 0; for (const v of x) sd += (v - mu) * (v - mu); sd = Math.sqrt(sd / x.length);
+    return { mu, sd };
+  }
+  // detrend by subtracting a centred moving average
+  function highpass(x, win) {
+    const out = new Float32Array(x.length), h = win >> 1;
+    let s = 0, n = 0;
+    const pre = new Float64Array(x.length + 1);
+    for (let i = 0; i < x.length; i++) pre[i + 1] = pre[i] + x[i];
+    for (let i = 0; i < x.length; i++) {
+      const a = Math.max(0, i - h), b = Math.min(x.length, i + h + 1);
+      out[i] = x[i] - (pre[b] - pre[a]) / (b - a);
+    }
+    return out;
+  }
+  // heart rate by autocorrelation, 36–200 bpm
+  function heartRate(x, fs) {
+    const n = x.length; if (n < fs * 3) return null;
+    const { mu } = stats(x);
+    const y = x.map(v => v - mu);
+    let r0 = 0; for (const v of y) r0 += v * v;
+    if (!r0) return null;
+    let best = 0, bestLag = 0;
+    const lo = Math.floor(fs * 60 / 200), hi = Math.min(n - 1, Math.floor(fs * 60 / 36));
+    const ac = [];
+    for (let lag = lo; lag <= hi; lag++) {
+      let s = 0; for (let i = 0; i + lag < n; i++) s += y[i] * y[i + lag];
+      s /= r0; ac.push(s);
+      if (s > best) { best = s; bestLag = lag; }
+    }
+    if (best < 0.25) return null;
+    // prefer the first strong peak (avoid picking 2× period)
+    for (let i = 1; i < ac.length - 1; i++) {
+      if (ac[i] > ac[i - 1] && ac[i] >= ac[i + 1] && ac[i] > best * 0.85) { bestLag = lo + i; break; }
+    }
+    return 60 * fs / bestLag;
+  }
+
+  function processSim() {
+    if (red.length < FS * 3) return;
+    const a = stats(red), b = stats(irr);
+    const R = (a.sd / a.mu) / (b.sd / b.mu);
+    const s = clamp(Sof(R), 0, 1);
+    reading = { spo2: Math.min(100, Math.round(s * 100)), hr: heartRate(irr.map(v => -v), FS), R };
+  }
+
+  function drawTrace(ctx, x, top, hgt, w, col, label) {
+    if (x.length < 2) return;
+    const hp = x;
+    let lo = Infinity, hi = -Infinity; for (const v of hp) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const span = (hi - lo) || 1;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.beginPath();
+    const n = hp.length;
+    for (let i = 0; i < n; i++) {
+      const px = (i / (WIN - 1)) * w, py = top + hgt - ((hp[i] - lo) / span) * hgt;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+    ctx.fillStyle = col; ctx.font = font(10); ctx.textAlign = 'left';
+    ctx.fillText(label, 8, top - 16);
+  }
+
+  function drawMon() {
+    const { ctx, w, h } = M;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    const panelW = Math.min(150, w * 0.34);
+    const tw = w - panelW - 8;
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for (let i = 1; i < 5; i++) { ctx.beginPath(); ctx.moveTo(tw * i / 5, 0); ctx.lineTo(tw * i / 5, h); ctx.stroke(); }
+    if (cam) {
+      const x = cam.trace;
+      if (x.length > 10) {
+        // show absorbance-like (inverted) detrended signal; last 5 s at ~30 fps
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, tw, h); ctx.clip();
+        const n = x.length;
+        let lo = Infinity, hi = -Infinity; for (const v of x) { if (v < lo) lo = v; if (v > hi) hi = v; }
+        const span = (hi - lo) || 1;
+        ctx.strokeStyle = COL.fault; ctx.lineWidth = 1.8; ctx.beginPath();
+        for (let i = 0; i < n; i++) { const px = i / (n - 1) * tw, py = 20 + (h - 40) * (1 - (x[i] - lo) / span); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+        ctx.stroke(); ctx.restore();
+      }
+      ctx.fillStyle = COL.fault; ctx.font = font(10); ctx.fillText('YOUR FINGER · camera red channel', 8, 12);
+    } else {
+      // invert so each beat points up, like a bedside monitor
+      const hr = highpass(red, 150).map(v => -v), hi = highpass(irr, 150).map(v => -v);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, tw, h); ctx.clip();
+      drawTrace(ctx, hi, 30, h / 2 - 42, tw, COL.ir, 'INFRARED 940 nm');
+      drawTrace(ctx, hr, h / 2 + 24, h / 2 - 42, tw, COL.fault, 'RED 660 nm');
+      ctx.restore();
+      // AC/DC bars — the actual measurement
+      const a = stats(red), b = stats(irr);
+      const acdcR = a.sd / a.mu * 100, acdcI = b.sd / b.mu * 100;
+      ctx.font = font(10); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+      ctx.fillText(`AC/DC ${acdcI.toFixed(2)}%`, 8, 26);
+      ctx.fillText(`AC/DC ${acdcR.toFixed(2)}%`, 8, h / 2 + 20);
+    }
+    // numeric panel
+    const px = w - panelW;
+    ctx.fillStyle = '#0f151d'; ctx.fillRect(px, 0, panelW, h);
+    ctx.textAlign = 'left'; ctx.font = font(10.5); ctx.fillStyle = COL.text;
+    ctx.fillText('SpO₂ %', px + 12, 22);
+    const spo2 = cam ? null : reading.spo2;
+    const truth = Math.round(S * 100);
+    const off = spo2 == null ? 0 : spo2 - truth;
+    ctx.font = font(Math.min(46, panelW * 0.34), 500);
+    ctx.fillStyle = spo2 == null ? COL.text : Math.abs(off) <= 2 ? COL.sig : Math.abs(off) <= 5 ? COL.caution : COL.fault;
+    ctx.fillText(spo2 == null ? '--' : spo2, px + 12, 66);
+    ctx.font = font(10.5); ctx.fillStyle = COL.text;
+    if (!cam) ctx.fillText(`blood truth ${truth}`, px + 12, 84);
+    else ctx.fillText('needs 2 known λ', px + 12, 84);
+    ctx.fillText('PULSE bpm', px + 12, h / 2 + 18);
+    const hrv = cam ? cam.hr : reading.hr;
+    ctx.font = font(Math.min(38, panelW * 0.28), 500); ctx.fillStyle = hrv ? COL.ir : COL.text;
+    ctx.fillText(hrv ? Math.round(hrv) : '--', px + 12, h / 2 + 56);
+    if (!cam && reading.R != null) {
+      ctx.font = font(10.5); ctx.fillStyle = COL.text;
+      ctx.fillText(`R = ${reading.R.toFixed(3)}`, px + 12, h - 14);
+    }
+    if (cam && cam.msg) {
+      ctx.font = font(11); ctx.fillStyle = COL.caution; ctx.textAlign = 'center';
+      ctx.fillText(cam.msg, tw / 2, h - 12);
+    }
+  }
+
+  function drawCal() {
+    const { ctx, w, h } = Cc;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    const m = { l: 40, r: 14, t: 24, b: 36 };
+    const Rmin = 0.2, Rmax = 1.4, Smin = 0.4, Smax = 1;
+    const X = r => m.l + (r - Rmin) / (Rmax - Rmin) * (w - m.l - m.r);
+    const Y = s => h - m.b - (s - Smin) / (Smax - Smin) * (h - m.t - m.b);
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.font = font(10); ctx.fillStyle = COL.text;
+    for (let s = 0.4; s <= 1.001; s += 0.1) { ctx.beginPath(); ctx.moveTo(m.l, Y(s)); ctx.lineTo(w - m.r, Y(s)); ctx.stroke(); ctx.textAlign = 'right'; ctx.fillText(Math.round(s * 100), m.l - 6, Y(s) + 3); }
+    for (let r = 0.2; r <= 1.401; r += 0.4) { ctx.beginPath(); ctx.moveTo(X(r), m.t); ctx.lineTo(X(r), h - m.b); ctx.stroke(); ctx.textAlign = 'center'; ctx.fillText(r.toFixed(1), X(r), h - m.b + 14); }
+    ctx.fillText('R = (AC/DC)red ÷ (AC/DC)ir', (m.l + w - m.r) / 2, h - 8);
+    ctx.textAlign = 'left'; ctx.fillText('SpO₂ lookup curve (Beer–Lambert)', m.l, 14);
+    ctx.strokeStyle = COL.ir; ctx.lineWidth = 1.6; ctx.beginPath();
+    let first = true;
+    for (let r = Rmin; r <= Rmax; r += 0.01) { const s = Sof(r); if (s < Smin || s > Smax) continue; first ? ctx.moveTo(X(r), Y(s)) : ctx.lineTo(X(r), Y(s)); first = false; }
+    ctx.stroke();
+    // R = 1 line
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = COL.grid2; ctx.beginPath(); ctx.moveTo(X(1), m.t); ctx.lineTo(X(1), h - m.b); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = COL.text; ctx.textAlign = 'center'; ctx.fillText('R=1', X(1), m.t + 10);
+    if (cam) return;
+    // truth point
+    const Rt = Rof(S);
+    ctx.strokeStyle = COL.bright; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X(Rt), Y(S), 6, 0, TAU); ctx.stroke();
+    // measured point
+    if (reading.R != null) {
+      const Rm = clamp(reading.R, Rmin, Rmax), Sm = clamp(Sof(reading.R), Smin, Smax);
+      ctx.fillStyle = COL.fault; ctx.beginPath(); ctx.arc(X(Rm), Y(Sm), 4.5, 0, TAU); ctx.fill();
+      ctx.textAlign = X(Rm) > w * 0.6 ? 'right' : 'left';
+      ctx.fillText('measured', X(Rm) + (X(Rm) > w * 0.6 ? -9 : 9), Y(Sm) + 14);
+    }
+    ctx.fillStyle = COL.bright; ctx.textAlign = X(Rt) > w * 0.6 ? 'right' : 'left';
+    ctx.fillText('truth', X(Rt) + (X(Rt) > w * 0.6 ? -10 : 10), Y(S) - 8);
+  }
+
+  function updateText() {
+    $('#ox-s-v').textContent = Math.round(S * 100) + '%';
+    $('#ox-pi-v').textContent = PI.toFixed(1) + '%' + (PI < 0.6 ? ' · cold' : PI > 3 ? ' · warm' : '');
+    $('#ox-m-v').textContent = motion ? Math.round(motion * 100) + '%' : 'still';
+    $('#ox-hr-v').textContent = HR + ' bpm';
+  }
+  sIn.addEventListener('input', () => { S = +sIn.value / 100; updateText(); });
+  piIn.addEventListener('input', () => { PI = +piIn.value; updateText(); });
+  mIn.addEventListener('input', () => { motion = +mIn.value; updateText(); });
+  hrIn.addEventListener('input', () => { HR = +hrIn.value; updateText(); });
+
+  /* ---- camera photoplethysmography ---- */
+  const small = document.createElement('canvas'); small.width = 40; small.height = 30;
+  const sctx = small.getContext('2d', { willReadFrequently: true });
+  async function startCam() {
+    const note = $('#ox-note');
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { note.textContent = 'This browser does not expose a camera to web pages.'; return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 320 }, height: { ideal: 240 } }, audio: false });
+      video.srcObject = stream; await video.play();
+      const track = stream.getVideoTracks()[0];
+      let torch = false;
+      try { await track.applyConstraints({ advanced: [{ torch: true }] }); torch = true; } catch (e) { /* not supported */ }
+      cam = { stream, track, samples: [], trace: [], hr: null, msg: 'cover the lens with a fingertip', torch };
+      camBtn.textContent = 'stop camera'; camBtn.classList.add('on');
+      note.innerHTML = torch
+        ? 'Flash is on. Rest a fingertip lightly over the lens <b>and</b> flash, and hold still for ten seconds.'
+        : 'This browser won\'t let a page switch on the flash, so work in bright light. Rest a fingertip lightly over the lens and hold still. On a laptop, hold your fingertip over the webcam in front of a lamp.';
+    } catch (e) {
+      note.textContent = 'Camera unavailable or permission denied. The simulated finger is still running.';
+    }
+  }
+  function stopCam() {
+    if (!cam) return;
+    try { cam.track.applyConstraints({ advanced: [{ torch: false }] }); } catch (e) { }
+    cam.stream.getTracks().forEach(tr => tr.stop());
+    cam = null; video.srcObject = null;
+    camBtn.textContent = 'use my camera'; camBtn.classList.remove('on');
+    $('#ox-note').innerHTML = 'Simulated finger. <b>use my camera</b> swaps in your own pulse: cover the rear camera (and flash, if your phone lets the page turn it on) with a fingertip and hold still. Video never leaves this page.';
+  }
+  camBtn.addEventListener('click', () => cam ? stopCam() : startCam());
+  function camSample() {
+    if (!cam || video.readyState < 2) return;
+    sctx.drawImage(video, 0, 0, small.width, small.height);
+    const d = sctx.getImageData(0, 0, small.width, small.height).data;
+    let r = 0, g = 0, b = 0;
+    for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+    const n = d.length / 4; r /= n; g /= n; b /= n;
+    const now = performance.now() / 1000;
+    cam.samples.push({ t: now, r });
+    while (cam.samples.length && cam.samples[0].t < now - 10) cam.samples.shift();
+    const covered = r > 60 && r > 1.6 * g && r > 1.6 * b;
+    cam.msg = covered ? '' : 'cover the lens with a fingertip';
+    // resample uniformly to 30 Hz
+    const s = cam.samples; if (s.length < 30) return;
+    const fs = 30, t0 = s[0].t, t1 = s[s.length - 1].t, out = [];
+    for (let tt = t0, j = 0; tt <= t1; tt += 1 / fs) {
+      while (j < s.length - 2 && s[j + 1].t < tt) j++;
+      const a = s[j], bb = s[j + 1]; const u = (tt - a.t) / ((bb.t - a.t) || 1);
+      out.push(a.r + (bb.r - a.r) * clamp(u, 0, 1));
+    }
+    // detrend (1.3 s) and light smoothing; invert so beats point up
+    const hp = highpass(out, 39);
+    const sm = hp.map((v, i) => -(hp[Math.max(0, i - 1)] + v + hp[Math.min(hp.length - 1, i + 1)]) / 3);
+    cam.trace = sm.slice(-fs * 5);
+    const est = covered ? heartRate(sm.slice(-fs * 8), fs) : null;
+    cam.hr = est ? (cam.hr ? cam.hr * 0.8 + est * 0.2 : est) : (covered ? cam.hr : null);
+  }
+
+  const ex = register($('#pulse'), {
+    resize() {
+      const narrow = window.innerWidth <= 640;
+      M = fit(mon, narrow ? 0.7 : 0.62, 240, 360);
+      Cc = fit(cal, narrow ? 0.75 : M.h / cal.parentElement.clientWidth, narrow ? 240 : M.h, narrow ? 340 : M.h);
+      drawMon(); drawCal();
+    },
+    tick(dt) {
+      const n = Math.round(dt * FS);
+      for (let i = 0; i < n; i++) simSample(1 / FS);
+      camSample();
+      procTimer += dt;
+      if (procTimer > 0.5) { procTimer = 0; processSim(); drawCal(); }
+      drawMon();
+    },
+  });
+  // prime the buffers so the monitor isn't empty on first view
+  for (let i = 0; i < WIN; i++) simSample(1 / FS);
+  processSim(); updateText(); ex.resize();
+  io.observe(ex.el);
+  // stop the camera if the section scrolls far away or the tab hides
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopCam(); });
+})();
+</script>
+</body>
+</html>

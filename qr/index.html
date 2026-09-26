@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scratch the Code · Tolerance</title>
+<meta name="description" content="A real QR code you can deface, and the Reed–Solomon decoder that repairs it live.">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M8 40 L18 40 L22 28 L27 50 L32 14 L37 44 L41 34 L56 34' fill='none' stroke='%236ee7a0' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Scratch the Code · Tolerance">
+<meta property="og:description" content="A real QR code you can deface, and the Reed–Solomon decoder that repairs it live.">
+<meta property="og:url" content="https://jkastl.github.io/tolerance/qr/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body class="solo">
+<div class="wrap crumb"><a href="../">← Tolerance</a> · exhibit 02 of 06</div>
+<main>
+<section class="ex" id="scratch">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">02</span><h2>Scratch the Code</h2></div>
+    <div class="ex-sub">Reed–Solomon over GF(256) · Reed &amp; Solomon, 1960 · QR, Denso Wave, 1994</div>
+    <div class="prose">
+      <p>This is a real QR code, built from scratch on this page: version 3 at error-correction level
+      <strong>H</strong>. Its 70 bytes are 26 bytes of message plus 44 bytes of
+      Reed–Solomon parity, split into two interleaved blocks. Each block can locate <em>and</em>
+      repair any 11 corrupted bytes without knowing in advance which ones they are.</p>
+      <p>Draw on it. Paint over modules, splat it, or slap a sticker on it. The decoder under the
+      panel reads the damaged grid the same way a scanner would, finds the errors, and fixes them.
+      You can also point your phone's camera at the screen and check that it still scans.</p>
+    </div>
+    <div class="panel">
+      <div class="screens">
+        <div class="screen" style="background:#fff"><canvas id="qr-cv" aria-label="QR code you can draw on"></canvas></div>
+        <div class="screen"><canvas id="qr-map" aria-label="Map of the 70 codewords in two blocks, damaged ones highlighted"></canvas></div>
+      </div>
+      <div class="controls">
+        <div class="ctl" style="flex-basis:260px"><label for="qr-text">message <b id="qr-bytes"></b></label>
+          <input type="text" id="qr-text" value="Still readable. Nice try" spellcheck="false" autocomplete="off"></div>
+        <div class="ctl"><label>brush</label>
+          <div class="seg" id="qr-tool">
+            <input type="radio" name="qt" id="qt-pen" value="pen" checked><label for="qt-pen">scribble</label>
+            <input type="radio" name="qt" id="qt-ink" value="ink"><label for="qt-ink">black ink</label>
+            <input type="radio" name="qt" id="qt-sticker" value="sticker"><label for="qt-sticker">sticker</label>
+          </div></div>
+        <div class="btns">
+          <button id="qr-splat">splat</button>
+          <button id="qr-salt">sprinkle 30 flips</button>
+          <button id="qr-map-btn">show byte map</button>
+          <button id="qr-reset">clean</button>
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="k">decoded</div><div class="v" id="qr-out" style="font-size:15px">—</div></div>
+        <div class="ro"><div class="k">block A errors</div><div class="v" id="qr-a">0<small>/ 11</small></div></div>
+        <div class="ro"><div class="k">block B errors</div><div class="v" id="qr-b">0<small>/ 11</small></div></div>
+        <div class="ro"><div class="k">modules flipped</div><div class="v" id="qr-flips">0</div></div>
+      </div>
+      <div class="note" id="qr-note">The three big squares, the timing stripes, and the small alignment square are locked. They aren't data. They're how a camera finds the grid in the first place.</div>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Put a big <b>sticker</b> in the middle. That's how "logo in the middle" QR codes work: the logo is just damage the error correction absorbs.</li>
+        <li>Hit <b>clean</b>, then <b>sprinkle 30 flips</b> a few times. Thirty scattered flipped modules can kill a code that shrugged off a sticker covering a hundred. Turn on the <b>byte map</b> to see why.</li>
+        <li>Scribble a long line with the <b>scribble</b> brush while the map is on. Each byte is a small 2-wide snake of 8 modules, so a scratch across the grid only damages the bytes it passes through.</li>
+      </ol>
+    </div>
+    <div class="deep">
+      <h3>The deep cut</h3>
+      <p>Reed–Solomon works on <em>bytes</em>, not bits. A byte with one flipped bit costs exactly as
+      much to repair as a byte with all eight flipped. That's why it loves burst damage like scratches,
+      stickers, and coffee rings, and why it's the outer code on CDs, DVDs, and the Voyager probes. Scattered
+      single-bit noise is the case it handles worst, so CDs interleave their data twice to turn one
+      scratch into many small bursts spread across different blocks.</p>
+      <p>The trick underneath is that a message becomes a polynomial, the parity bytes force that polynomial to have
+      22 known roots, and damage shows up as the polynomial no longer vanishing at those points. Twenty-two
+      equations are enough to solve for 11 unknown positions and 11 unknown values. The format
+      bits (the strips next to the big squares) carry their own separate BCH code, and they're stored twice.</p>
+    </div>
+  </div>
+</section>
+</main>
+<nav class="pager wrap" aria-label="Exhibits"><a class="prev" href="../vote/">←<span class="n">01</span>The Vote</a><a class="home" href="../">all exhibits</a><a class="next" href="../gps/">Where Am I<span class="n">03</span>→</a></nav>
+<footer class="page-foot">
+  <div class="wrap">
+    <div class="refs">
+      <h3>Reading</h3>
+      <ul>
+        <li>I. S. Reed &amp; G. Solomon, “Polynomial codes over certain finite fields,” <i>J. SIAM</i>, 1960. ISO/IEC 18004 (QR Code).</li>
+      </ul>
+    </div>
+    <p class="colophon">Everything on this page runs in your browser with no network calls. Shared code: <a href="../core.js">core.js</a>. <a href="https://github.com/jkastl/tolerance">Source</a>.</p>
+  </div>
+</footer>
+<script src="../core.js"></script>
+<script>
+"use strict";
+/* ================================================================
+   02 · SCRATCH THE CODE — QR version 3-H, encoder + decoder
+   ================================================================ */
+const QR = (() => {
+  /* ---- GF(256), primitive polynomial x^8+x^4+x^3+x^2+1 (0x11d) ---- */
+  const EXP = new Uint8Array(512), LOG = new Uint8Array(256);
+  for (let i = 0, x = 1; i < 255; i++) { EXP[i] = x; LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; }
+  for (let i = 255; i < 512; i++) EXP[i] = EXP[i - 255];
+  const mul = (a, b) => (a && b) ? EXP[LOG[a] + LOG[b]] : 0;
+  const div = (a, b) => a ? EXP[(LOG[a] + 255 - LOG[b]) % 255] : 0;
+  const inv = a => EXP[255 - LOG[a]];
+
+  /* ---- Reed–Solomon encode: remainder of msg·x^n / Π(x − α^i) ---- */
+  function rsGenerator(n) {
+    let g = [1];
+    for (let i = 0; i < n; i++) {
+      const ng = new Array(g.length + 1).fill(0);
+      for (let j = 0; j < g.length; j++) { ng[j] ^= g[j]; ng[j + 1] ^= mul(g[j], EXP[i]); }
+      g = ng;
+    }
+    return g; // big-endian, g[0] = 1
+  }
+  function rsEncode(data, n) {
+    const g = rsGenerator(n);
+    const r = new Array(n).fill(0);
+    for (const d of data) {
+      const factor = d ^ r[0];
+      r.shift(); r.push(0);
+      for (let j = 0; j < n; j++) r[j] ^= mul(g[j + 1], factor);
+    }
+    return r;
+  }
+
+  /* ---- Reed–Solomon decode (Berlekamp–Massey, Chien, Forney) ----
+     cw: big-endian codeword (cw[0] is the x^(len-1) coefficient). fcr = 0.
+     Returns { ok, data, positions } or { ok:false }. */
+  function evalBE(poly, x) { let y = 0; for (const c of poly) y = mul(y, x) ^ c; return y; }
+  function evalLE(poly, x) { let y = 0; for (let i = poly.length - 1; i >= 0; i--) y = mul(y, x) ^ poly[i]; return y; }
+  function rsDecode(cw, nsym) {
+    const len = cw.length;
+    const S = [];
+    let clean = true;
+    for (let j = 0; j < nsym; j++) { S.push(evalBE(cw, EXP[j])); if (S[j]) clean = false; }
+    if (clean) return { ok: true, fixed: cw.slice(), positions: [] };
+    // Berlekamp–Massey → error locator Λ (little-endian, Λ[0] = 1)
+    let Lam = [1], B = [1], L = 0, m = 1, b = 1;
+    for (let n = 0; n < nsym; n++) {
+      let d = S[n];
+      for (let i = 1; i <= L; i++) d ^= mul(Lam[i] || 0, S[n - i]);
+      if (d === 0) { m++; continue; }
+      const coef = div(d, b);
+      const T = Lam.slice();
+      const need = B.length + m;
+      while (Lam.length < need) Lam.push(0);
+      for (let i = 0; i < B.length; i++) Lam[i + m] ^= mul(coef, B[i]);
+      if (2 * L <= n) { L = n + 1 - L; B = T; b = d; m = 1; } else m++;
+    }
+    while (Lam.length > 1 && Lam[Lam.length - 1] === 0) Lam.pop();
+    if (L > nsym / 2 || Lam.length - 1 !== L) return { ok: false };
+    // Chien search: error at power p where Λ(α^-p) = 0
+    const powers = [];
+    for (let p = 0; p < len; p++) if (evalLE(Lam, EXP[(255 - p) % 255]) === 0) powers.push(p);
+    if (powers.length !== L) return { ok: false };
+    // Ω = S(x)·Λ(x) mod x^nsym
+    const Om = new Array(nsym).fill(0);
+    for (let i = 0; i < nsym; i++) for (let j = 0; j < Lam.length && i + j < nsym; j++) Om[i + j] ^= mul(S[i], Lam[j]);
+    // Λ'(x): keep odd terms
+    const dLam = [];
+    for (let i = 1; i < Lam.length; i++) dLam.push(i & 1 ? Lam[i] : 0);
+    const fixed = cw.slice();
+    const positions = [];
+    for (const p of powers) {
+      const X = EXP[p], Xi = EXP[(255 - p) % 255];
+      const num = mul(X, evalLE(Om, Xi));
+      const den = evalLE(dLam, Xi);
+      if (!den) return { ok: false };
+      const k = len - 1 - p;
+      fixed[k] ^= div(num, den);
+      positions.push(k);
+    }
+    for (let j = 0; j < nsym; j++) if (evalBE(fixed, EXP[j])) return { ok: false };
+    return { ok: true, fixed, positions: positions.sort((a, b) => a - b) };
+  }
+
+  /* ---- version 3, level H geometry ---- */
+  const N = 29, BLOCKS = 2, DATA_PER = 13, EC_PER = 22, TOTAL = 70;
+  const MAX_BYTES = 24;
+  const ECL_H = 2; // format bits for level H
+
+  function blankGrid() { return Array.from({ length: N }, () => new Uint8Array(N)); }
+  function buildFunction() {
+    const mod = blankGrid(), fn = blankGrid();
+    const set = (r, c, v) => { mod[r][c] = v ? 1 : 0; fn[r][c] = 1; };
+    // timing
+    for (let i = 0; i < N; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+    // finders + separators
+    for (const [r0, c0] of [[0, 0], [0, N - 7], [N - 7, 0]]) {
+      for (let dr = -1; dr <= 7; dr++) for (let dc = -1; dc <= 7; dc++) {
+        const r = r0 + dr, c = c0 + dc;
+        if (r < 0 || c < 0 || r >= N || c >= N) continue;
+        const d = Math.max(Math.abs(dr - 3), Math.abs(dc - 3));
+        set(r, c, d !== 2 && d !== 4);
+      }
+    }
+    // alignment at (22,22)
+    for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++)
+      set(22 + dr, 22 + dc, Math.max(Math.abs(dr), Math.abs(dc)) !== 1);
+    // reserve format areas (values filled later) + dark module
+    for (let i = 0; i < 9; i++) { fn[8][i] = 1; fn[i][8] = 1; }
+    for (let i = 0; i < 8; i++) { fn[8][N - 1 - i] = 1; fn[N - 1 - i][8] = 1; }
+    set(N - 8, 8, 1);
+    return { mod, fn };
+  }
+  const BASE = buildFunction();
+  const FN = BASE.fn;
+
+  // data module order: for each bit index, [row, col]
+  const ORDER = [];
+  for (let right = N - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let vert = 0; vert < N; vert++) for (let j = 0; j < 2; j++) {
+      const c = right - j, upward = ((right + 1) & 2) === 0;
+      const r = upward ? N - 1 - vert : vert;
+      if (!FN[r][c]) ORDER.push([r, c]);
+    }
+  }
+  // ORDER has 567 = 70*8 + 7 remainder bits
+  // which codeword (0..69, in transmission order) each module belongs to
+  const CW_OF = Array.from({ length: N }, () => new Int16Array(N).fill(-1));
+  ORDER.forEach(([r, c], i) => { if (i < TOTAL * 8) CW_OF[r][c] = i >> 3; });
+  // transmission index → [block, index within block]
+  const TX = [];
+  for (let i = 0; i < DATA_PER; i++) for (let b = 0; b < BLOCKS; b++) TX.push([b, i]);
+  for (let i = 0; i < EC_PER; i++) for (let b = 0; b < BLOCKS; b++) TX.push([b, DATA_PER + i]);
+
+  const MASKS = [
+    (r, c) => (r + c) % 2 === 0,
+    (r, c) => r % 2 === 0,
+    (r, c) => c % 3 === 0,
+    (r, c) => (r + c) % 3 === 0,
+    (r, c) => (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0,
+    (r, c) => (r * c) % 2 + (r * c) % 3 === 0,
+    (r, c) => ((r * c) % 2 + (r * c) % 3) % 2 === 0,
+    (r, c) => ((r + c) % 2 + (r * c) % 3) % 2 === 0,
+  ];
+
+  function formatBits(ecl, mask) {
+    const data = (ecl << 3) | mask;
+    let rem = data;
+    for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+    return ((data << 10) | (rem & 0x3ff)) ^ 0x5412;
+  }
+  // [row, col] of each format bit 0..14, for both copies
+  const FMT_A = [], FMT_B = [];
+  for (let i = 0; i <= 5; i++) FMT_A.push([i, 8]);
+  FMT_A.push([7, 8], [8, 8], [8, 7]);
+  for (let i = 9; i < 15; i++) FMT_A.push([8, 14 - i]);
+  for (let i = 0; i < 8; i++) FMT_B.push([8, N - 1 - i]);
+  for (let i = 8; i < 15; i++) FMT_B.push([N - 15 + i, 8]);
+  const IS_FMT = blankGrid();
+  for (const [r, c] of FMT_A.concat(FMT_B)) IS_FMT[r][c] = 1;
+
+  function drawFormat(mod, mask) {
+    const bits = formatBits(ECL_H, mask);
+    for (let i = 0; i < 15; i++) {
+      const v = (bits >>> i) & 1;
+      mod[FMT_A[i][0]][FMT_A[i][1]] = v; mod[FMT_B[i][0]][FMT_B[i][1]] = v;
+    }
+  }
+
+  function penalty(m) {
+    let score = 0;
+    const get = (r, c, t) => t ? m[c][r] : m[r][c];
+    for (let t = 0; t < 2; t++) for (let r = 0; r < N; r++) {
+      let run = 1;
+      for (let c = 1; c <= N; c++) {
+        if (c < N && get(r, c, t) === get(r, c - 1, t)) run++;
+        else { if (run >= 5) score += 3 + run - 5; run = 1; }
+      }
+      for (let c = 0; c + 10 < N; c++) {
+        let s = '';
+        for (let k = 0; k < 11; k++) s += get(r, c + k, t);
+        if (s === '10111010000' || s === '00001011101') score += 40;
+      }
+    }
+    for (let r = 0; r < N - 1; r++) for (let c = 0; c < N - 1; c++) {
+      const v = m[r][c];
+      if (v === m[r + 1][c] && v === m[r][c + 1] && v === m[r + 1][c + 1]) score += 3;
+    }
+    let dark = 0; for (const row of m) for (const v of row) dark += v;
+    score += Math.floor(Math.abs(dark * 20 - N * N * 10) / (N * N)) * 10;
+    return score;
+  }
+
+  function utf8(s) { return new TextEncoder().encode(s); }
+
+  /* encode text → { grid, mask, codewords (tx order), blocks } */
+  function encode(text) {
+    let bytes = utf8(text);
+    if (bytes.length > MAX_BYTES) bytes = bytes.slice(0, MAX_BYTES);
+    const bits = [];
+    const put = (v, n) => { for (let i = n - 1; i >= 0; i--) bits.push((v >>> i) & 1); };
+    put(4, 4); put(bytes.length, 8);
+    for (const b of bytes) put(b, 8);
+    const cap = BLOCKS * DATA_PER * 8;
+    for (let i = 0; i < 4 && bits.length < cap; i++) bits.push(0);
+    while (bits.length % 8) bits.push(0);
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) { let v = 0; for (let k = 0; k < 8; k++) v = (v << 1) | bits[i + k]; data.push(v); }
+    for (let pad = 0xEC; data.length < BLOCKS * DATA_PER; pad ^= 0xEC ^ 0x11) data.push(pad);
+    const blocks = [];
+    for (let b = 0; b < BLOCKS; b++) {
+      const d = data.slice(b * DATA_PER, (b + 1) * DATA_PER);
+      blocks.push(d.concat(rsEncode(d, EC_PER)));
+    }
+    const tx = TX.map(([b, i]) => blocks[b][i]);
+    let best = null;
+    for (let mask = 0; mask < 8; mask++) {
+      const m = BASE.mod.map(r => r.slice());
+      ORDER.forEach(([r, c], i) => {
+        let v = i < TOTAL * 8 ? (tx[i >> 3] >>> (7 - (i & 7))) & 1 : 0;
+        if (MASKS[mask](r, c)) v ^= 1;
+        m[r][c] = v;
+      });
+      drawFormat(m, mask);
+      const s = penalty(m);
+      if (!best || s < best.score) best = { grid: m, mask, score: s };
+    }
+    return { grid: best.grid, mask: best.mask, tx, blocks, bytes };
+  }
+
+  /* decode a (possibly damaged) grid */
+  function readFormat(m) {
+    let best = null;
+    for (const copy of [FMT_A, FMT_B]) {
+      let v = 0;
+      for (let i = 0; i < 15; i++) v |= m[copy[i][0]][copy[i][1]] << i;
+      for (let ecl = 0; ecl < 4; ecl++) for (let mask = 0; mask < 8; mask++) {
+        let x = v ^ formatBits(ecl, mask), d = 0;
+        while (x) { d += x & 1; x >>>= 1; }
+        if (!best || d < best.d) best = { d, ecl, mask };
+      }
+    }
+    return best.d <= 3 ? best : null;
+  }
+  function decode(m) {
+    const fmt = readFormat(m);
+    if (!fmt) return { ok: false, why: 'format bits unreadable' };
+    const tx = new Array(TOTAL).fill(0);
+    ORDER.forEach(([r, c], i) => {
+      if (i >= TOTAL * 8) return;
+      const v = m[r][c] ^ (MASKS[fmt.mask](r, c) ? 1 : 0);
+      tx[i >> 3] |= v << (7 - (i & 7));
+    });
+    const blocks = [[], []];
+    TX.forEach(([b, i], k) => { blocks[b][i] = tx[k]; });
+    const res = blocks.map(bl => rsDecode(bl, EC_PER));
+    const out = { fmt, tx, blocks: res, ok: res.every(r => r.ok) };
+    if (!out.ok) { out.why = 'too many damaged bytes'; return out; }
+    const data = [].concat(res[0].fixed.slice(0, DATA_PER), res[1].fixed.slice(0, DATA_PER));
+    const mode = data[0] >> 4;
+    if (mode !== 4) { out.ok = false; out.why = 'unexpected mode'; return out; }
+    const n = ((data[0] & 15) << 4) | (data[1] >> 4);
+    const bytes = [];
+    for (let i = 0; i < n && i + 2 < data.length; i++) bytes.push(((data[1 + i] & 15) << 4) | (data[2 + i] >> 4));
+    out.text = new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
+    return out;
+  }
+
+  return { N, MAX_BYTES, FN, IS_FMT, CW_OF, TX, TOTAL, DATA_PER, EC_PER, encode, decode, rsEncode, rsDecode, utf8 };
+})();
+
+(() => {
+  const cv = $('#qr-cv'), mapCv = $('#qr-map'), txt = $('#qr-text'), toolSeg = $('#qr-tool');
+  const N = QR.N, QUIET = 4, TOTALM = N + 2 * QUIET;
+  let enc, grid, R, M, showMap = false;
+  let flips = 0;
+  let lastDec = null;
+
+  function geom() {
+    const s = Math.floor(Math.min(R.w, R.h) / TOTALM);
+    const size = s * TOTALM;
+    return { s, ox: Math.floor((R.w - size) / 2) + QUIET * s, oy: Math.floor((R.h - size) / 2) + QUIET * s };
+  }
+  function cwDamaged() {
+    // which transmitted codewords differ from the clean ones (index by tx order)
+    const dmg = new Uint8Array(QR.TOTAL);
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const k = QR.CW_OF[r][c];
+      if (k >= 0 && grid[r][c] !== enc.grid[r][c]) dmg[k] = 1;
+    }
+    return dmg;
+  }
+  const BLOCK_HUE = ['rgba(105,201,255,', 'rgba(182,156,255,'];
+  function draw() {
+    const { ctx, w, h } = R;
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    const { s, ox, oy } = geom();
+    const dmg = showMap ? cwDamaged() : null;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const x = ox + c * s, y = oy + r * s;
+      if (showMap) {
+        const k = QR.CW_OF[r][c];
+        if (k >= 0) {
+          const [b] = QR.TX[k];
+          ctx.fillStyle = dmg[k] ? 'rgba(255,107,91,.55)' : BLOCK_HUE[b] + (k % 2 ? '.16)' : '.30)');
+          ctx.fillRect(x, y, s, s);
+        } else if (QR.IS_FMT[r][c]) { ctx.fillStyle = 'rgba(255,200,97,.45)'; ctx.fillRect(x, y, s, s); }
+      }
+      if (grid[r][c]) {
+        ctx.fillStyle = grid[r][c] !== enc.grid[r][c] && showMap ? '#7a1c10' : '#000';
+        if (showMap) ctx.fillRect(x + s * 0.18, y + s * 0.18, s * 0.64, s * 0.64);
+        else ctx.fillRect(x, y, s, s);
+      }
+    }
+    if (showMap) {
+      ctx.strokeStyle = 'rgba(0,0,0,.25)'; ctx.lineWidth = 1;
+      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+        const k = QR.CW_OF[r][c]; if (k < 0) continue;
+        const x = ox + c * s, y = oy + r * s;
+        if (c + 1 < N && QR.CW_OF[r][c + 1] !== k) { ctx.beginPath(); ctx.moveTo(x + s, y); ctx.lineTo(x + s, y + s); ctx.stroke(); }
+        if (r + 1 < N && QR.CW_OF[r + 1][c] !== k) { ctx.beginPath(); ctx.moveTo(x, y + s); ctx.lineTo(x + s, y + s); ctx.stroke(); }
+      }
+    }
+  }
+
+  function drawMap() {
+    const { ctx, w, h } = M;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    const d = lastDec;
+    const dmg = cwDamaged();
+    const cols = 7, pad = 14;
+    ctx.font = font(10.5); ctx.textAlign = 'left';
+    const blockH = (h - 3 * pad) / 2;
+    for (let b = 0; b < 2; b++) {
+      const y0 = pad + b * (blockH + pad);
+      const res = d && d.blocks ? d.blocks[b] : null;
+      const fixedSet = new Set(res && res.ok ? res.positions : []);
+      // count damaged in this block
+      let hit = 0;
+      QR.TX.forEach(([bb], k) => { if (bb === b && dmg[k]) hit++; });
+      ctx.fillStyle = COL.text;
+      ctx.fillText(`BLOCK ${'AB'[b]} · 13 data + 22 parity`, pad, y0 + 10);
+      const status = res && res.ok ? (hit ? `repaired ${hit}` : 'clean') : 'LOST';
+      ctx.textAlign = 'right'; ctx.fillStyle = res && res.ok ? (hit ? COL.caution : COL.sig) : COL.fault;
+      ctx.fillText(status, w - pad, y0 + 10); ctx.textAlign = 'left';
+      const gy = y0 + 20, gh = blockH - 26;
+      const rows = 5, cw = (w - 2 * pad) / cols, ch = gh / rows;
+      for (let i = 0; i < 35; i++) {
+        const cx = pad + (i % cols) * cw, cy = gy + Math.floor(i / cols) * ch;
+        const k = QR.TX.findIndex(([bb, ii]) => bb === b && ii === i);
+        const damaged = dmg[k];
+        const isData = i < QR.DATA_PER;
+        ctx.fillStyle = damaged ? (res && res.ok ? 'rgba(255,200,97,.25)' : 'rgba(255,107,91,.3)') : (isData ? '#16202b' : '#101820');
+        ctx.fillRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3);
+        if (damaged) { ctx.strokeStyle = res && res.ok ? COL.caution : COL.fault; ctx.lineWidth = 1; ctx.strokeRect(cx + 1.5, cy + 1.5, cw - 3, ch - 3); }
+        const shown = res && res.ok ? res.fixed[i] : d && d.tx ? d.tx[k] : 0;
+        ctx.fillStyle = damaged ? COL.bright : (isData ? COL.bright : COL.text);
+        ctx.textAlign = 'center';
+        ctx.font = font(Math.min(12, ch * 0.42));
+        ctx.fillText(shown.toString(16).padStart(2, '0'), cx + cw / 2, cy + ch / 2 + 4);
+        if (fixedSet.has(i)) { ctx.fillStyle = COL.sig; ctx.fillRect(cx + 4, cy + ch - 6, cw - 8, 2); }
+      }
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function decodeNow() {
+    lastDec = QR.decode(grid);
+    const out = $('#qr-out');
+    if (lastDec.ok) { out.textContent = '“' + lastDec.text + '”'; out.className = 'v ok'; }
+    else { out.textContent = lastDec.why; out.className = 'v bad'; }
+    out.style.fontSize = '15px';
+    const dmg = cwDamaged();
+    for (let b = 0; b < 2; b++) {
+      let hit = 0; QR.TX.forEach(([bb], k) => { if (bb === b && dmg[k]) hit++; });
+      const el = $(b ? '#qr-b' : '#qr-a');
+      el.innerHTML = `${hit}<small>/ 11 max</small>`;
+      el.className = 'v ' + (hit > 11 ? 'bad' : hit > 8 ? 'meh' : '');
+    }
+    $('#qr-flips').textContent = flips;
+    let fmtDmg = 0;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (QR.IS_FMT[r][c] && grid[r][c] !== enc.grid[r][c]) fmtDmg++;
+    const note = $('#qr-note');
+    note.innerHTML = fmtDmg
+      ? `Format bits damaged: <b>${fmtDmg}</b>. These 15 bits (error level + mask pattern) have their own BCH code and are stored twice, once around each of two corners, so the decoder picks the closest valid pattern.`
+      : 'The three big squares, the timing stripes, and the small alignment square are locked. They aren\'t data. They\'re how a camera finds the grid in the first place.';
+  }
+  function countFlips() {
+    flips = 0;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c] !== enc.grid[r][c]) flips++;
+  }
+  function refresh() { countFlips(); decodeNow(); draw(); drawMap(); }
+
+  function setText() {
+    let t = txt.value;
+    while (QR.utf8(t).length > QR.MAX_BYTES) t = t.slice(0, -1);
+    if (t !== txt.value) txt.value = t;
+    $('#qr-bytes').textContent = `${QR.utf8(t).length}/${QR.MAX_BYTES} bytes`;
+    enc = QR.encode(t);
+    grid = enc.grid.map(r => r.slice());
+    refresh();
+  }
+
+  /* ---- painting ---- */
+  let drawing = false, stroke = null, stickerStart = null, stickerCur = null;
+  function cell(e) {
+    const p = ptr(cv, e), { s, ox, oy } = geom();
+    return { r: Math.floor((p.y - oy) / s), c: Math.floor((p.x - ox) / s) };
+  }
+  const editable = (r, c) => r >= 0 && c >= 0 && r < N && c < N && !(QR.FN[r][c] && !QR.IS_FMT[r][c]);
+  function paint(r, c, tool) {
+    for (const [dr, dc] of [[0, 0]]) {
+      const rr = r + dr, cc = c + dc;
+      if (!editable(rr, cc)) continue;
+      const key = rr * N + cc;
+      if (stroke.has(key)) continue;
+      stroke.add(key);
+      if (tool === 'pen') grid[rr][cc] ^= 1; else grid[rr][cc] = 1;
+    }
+  }
+  function line(a, b, tool) {
+    const n = Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c), 1);
+    for (let i = 0; i <= n; i++) paint(Math.round(lerp(a.r, b.r, i / n)), Math.round(lerp(a.c, b.c, i / n)), tool);
+  }
+  let lastCell = null;
+  cv.addEventListener('pointerdown', e => {
+    drawing = true; cv.setPointerCapture(e.pointerId);
+    const tool = radioValue(toolSeg), p = cell(e);
+    stroke = new Set();
+    if (tool === 'sticker') { stickerStart = stickerCur = p; drawSticker(); return; }
+    lastCell = p; paint(p.r, p.c, tool); countFlips(); draw();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const tool = radioValue(toolSeg), p = cell(e);
+    if (tool === 'sticker') { stickerCur = p; draw(); drawSticker(); return; }
+    line(lastCell, p, tool); lastCell = p; countFlips(); draw();
+    $('#qr-flips').textContent = flips;
+  });
+  const end = () => {
+    if (!drawing) return; drawing = false;
+    if (stickerStart) {
+      const r0 = Math.min(stickerStart.r, stickerCur.r), r1 = Math.max(stickerStart.r, stickerCur.r);
+      const c0 = Math.min(stickerStart.c, stickerCur.c), c1 = Math.max(stickerStart.c, stickerCur.c);
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) if (editable(r, c)) grid[r][c] = 1;
+      stickerStart = null;
+    }
+    refresh();
+  };
+  cv.addEventListener('pointerup', end);
+  cv.addEventListener('pointercancel', end);
+  function drawSticker() {
+    const { ctx } = R, { s, ox, oy } = geom();
+    const r0 = Math.min(stickerStart.r, stickerCur.r), r1 = Math.max(stickerStart.r, stickerCur.r);
+    const c0 = Math.min(stickerStart.c, stickerCur.c), c1 = Math.max(stickerStart.c, stickerCur.c);
+    ctx.fillStyle = 'rgba(184,64,43,.8)';
+    ctx.fillRect(ox + c0 * s, oy + r0 * s, (c1 - c0 + 1) * s, (r1 - r0 + 1) * s);
+  }
+
+  $('#qr-splat').addEventListener('click', () => {
+    const cr = 4 + Math.random() * (N - 8), cc = 4 + Math.random() * (N - 8), rad = 2.2 + Math.random() * 1.8;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+      const d = Math.hypot(r - cr, c - cc) + (Math.random() - 0.5) * 1.6;
+      if (d < rad && editable(r, c)) grid[r][c] = Math.random() < 0.75 ? 1 : 0;
+    }
+    // a couple of droplets
+    for (let i = 0; i < 5; i++) {
+      const r = Math.round(cr + gauss() * 4), c = Math.round(cc + gauss() * 4);
+      if (editable(r, c)) grid[r][c] = 1;
+    }
+    refresh();
+  });
+  $('#qr-salt').addEventListener('click', () => {
+    let n = 0, guard = 0;
+    while (n < 30 && guard++ < 5000) {
+      const r = Math.floor(Math.random() * N), c = Math.floor(Math.random() * N);
+      if (QR.CW_OF[r][c] < 0) continue;
+      grid[r][c] ^= 1; n++;
+    }
+    refresh();
+  });
+  $('#qr-reset').addEventListener('click', () => { grid = enc.grid.map(r => r.slice()); refresh(); });
+  const mapBtn = $('#qr-map-btn');
+  mapBtn.addEventListener('click', () => {
+    showMap = !showMap; mapBtn.classList.toggle('on', showMap);
+    mapBtn.textContent = showMap ? 'hide byte map' : 'show byte map';
+    draw();
+  });
+  txt.addEventListener('input', setText);
+
+  const ex = register($('#scratch'), {
+    resize() {
+      const narrow = window.innerWidth <= 640;
+      R = fit(cv, 1, 260, 440);
+      M = fit(mapCv, narrow ? 0.9 : R.h / mapCv.parentElement.clientWidth, narrow ? 280 : R.h, narrow ? 420 : R.h);
+      if (enc) { draw(); drawMap(); }
+    },
+  });
+  ex.resize();
+  setText();
+  io.observe(ex.el);
+})();
+</script>
+</body>
+</html>

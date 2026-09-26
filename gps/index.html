@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where Am I · Tolerance</title>
+<meta name="description" content="GPS as circles and a bad clock, and why altitude is always the sloppiest number.">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M8 40 L18 40 L22 28 L27 50 L32 14 L37 44 L41 34 L56 34' fill='none' stroke='%236ee7a0' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Where Am I · Tolerance">
+<meta property="og:description" content="GPS as circles and a bad clock, and why altitude is always the sloppiest number.">
+<meta property="og:url" content="https://jkastl.github.io/tolerance/gps/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body class="solo">
+<div class="wrap crumb"><a href="../">← Tolerance</a> · exhibit 03 of 06</div>
+<main>
+<section class="ex" id="fix">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">03</span><h2>Where Am I</h2></div>
+    <div class="ex-sub">GPS pseudoranging · side view, squashed to fit</div>
+    <div class="prose">
+      <p>Each GPS satellite carries an atomic clock and broadcasts the time. Your receiver notes when each
+      broadcast arrives, multiplies the delay by the speed of light, and draws a circle. The catch is
+      that your phone has a <strong>cheap quartz clock</strong>, and one microsecond of error is
+      300&nbsp;m of range. None of these "ranges" are true. They're all wrong by the same unknown amount.</p>
+      <p>So GPS doesn't solve for where you are. It solves for where you are <em>and what time it is</em>,
+      together, which is why you need one more satellite than you have dimensions. Slide the
+      clock-error guess until the circles meet at a single point. That point is the fix.</p>
+    </div>
+    <div class="panel">
+      <div class="screen"><canvas id="gps-cv" aria-label="Satellites above a receiver, with range circles"></canvas></div>
+      <div class="controls">
+        <div class="ctl" style="flex-basis:260px"><label for="gps-b">receiver clock error guess <b id="gps-b-v"></b></label>
+          <input type="range" id="gps-b" min="0" max="300" step="0.1" value="0"></div>
+        <div class="ctl"><label for="gps-n">ranging noise <b id="gps-n-v"></b></label>
+          <input type="range" id="gps-n" min="0" max="4" step="0.05" value="0.4"></div>
+        <div class="btns">
+          <button id="gps-solve">solve it</button>
+          <button id="gps-all" class="warn">all sat clocks +10 µs</button>
+          <button id="gps-one" class="warn">one sat clock +10 µs</button>
+          <button id="gps-reset">new receiver clock</button>
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="k">circles miss by</div><div class="v" id="gps-mis">—</div></div>
+        <div class="ro"><div class="k">fix error</div><div class="v" id="gps-err">—</div></div>
+        <div class="ro"><div class="k">horizontal DOP</div><div class="v" id="gps-hdop">—</div></div>
+        <div class="ro"><div class="k">vertical DOP</div><div class="v" id="gps-vdop">—</div></div>
+      </div>
+      <div class="note">Drag the <b>receiver</b> or any <b>satellite</b>. Tap a satellite to switch it off. The faint cloud is 150 fixes with fresh noise, showing where the answer could land with this geometry.</div>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Slide the clock guess by hand until the circles close. Then hit <b>solve it</b> to watch Gauss–Newton do it in four or five steps.</li>
+        <li>Look at the noise cloud. It's taller than it is wide, and the vertical DOP is worse than the horizontal. Every satellite is <em>above</em> you, so nothing pins you from below. That's why GPS altitude is always the sloppiest number.</li>
+        <li>Drag all the satellites into a tight cluster. The cloud stretches into a long streak. Good satellites are spread out, not close.</li>
+        <li>Switch off satellites until only two are left. Two circles and an unknown clock is three unknowns and two equations, so there's no unique answer.</li>
+        <li>Press <b>all sat clocks +10 µs</b>. The fix doesn't move, and only the solved time changes. Then try <b>one sat clock</b>.</li>
+      </ol>
+    </div>
+    <div class="deep">
+      <h3>The deep cut</h3>
+      <p>Satellite clocks tick faster than ground clocks by about 38&nbsp;µs a day: weaker gravity up
+      there speeds them up by about 45&nbsp;µs, and orbital speed slows them by about 7&nbsp;µs. They're built to
+      run slow on the ground, at 10.22999999543&nbsp;MHz instead of 10.23&nbsp;MHz, so they're right in orbit.</p>
+      <p>You'll often read that without relativity "GPS would drift 10&nbsp;km per day." The last
+      button shows why that's only half right. An error that's the <em>same</em> on every satellite
+      lands in the clock term you were already solving for, so position barely notices. What actually
+      hurts is error that <em>differs</em> between satellites. Orbits are slightly eccentric, so each
+      satellite's relativistic offset wobbles on its own schedule, and receivers correct for that
+      term by term.</p>
+    </div>
+  </div>
+</section>
+</main>
+<nav class="pager wrap" aria-label="Exhibits"><a class="prev" href="../qr/">←<span class="n">02</span>Scratch the Code</a><a class="home" href="../">all exhibits</a><a class="next" href="../kalman/">Two Wrong Answers<span class="n">04</span>→</a></nav>
+<footer class="page-foot">
+  <div class="wrap">
+    <div class="refs">
+      <h3>Reading</h3>
+      <ul>
+        <li>N. Ashby, “Relativity in the Global Positioning System,” <i>Living Reviews in Relativity</i>, 2003.</li>
+      </ul>
+    </div>
+    <p class="colophon">Everything on this page runs in your browser with no network calls. Shared code: <a href="../core.js">core.js</a>. <a href="https://github.com/jkastl/tolerance">Source</a>.</p>
+  </div>
+</footer>
+<script src="../core.js"></script>
+<script>
+"use strict";
+/* ================================================================
+   03 · WHERE AM I — GPS pseudoranging (2-D side view)
+   ================================================================ */
+(() => {
+  const cv = $('#gps-cv'), bIn = $('#gps-b'), nIn = $('#gps-n');
+  const Ckm = 0.299792458; // km per µs
+  const SAT_COL = ['#69c9ff', '#b69cff', '#ffc861', '#ff9ecf', '#6ee7a0'];
+  const WORLD = { x0: -105, x1: 105, y0: -12, y1: 128 };
+  let R, sc, ox, oy;
+  const sats = [
+    { x: -80, y: 88 }, { x: -38, y: 116 }, { x: 8, y: 104 }, { x: 52, y: 118 }, { x: 88, y: 84 },
+  ].map(s => ({ ...s, on: true, clk: 0, z: gauss() }));
+  const rx = { x: 6, y: 4 };
+  let bTrue = 0, sigma = +nIn.value, guess = +bIn.value;
+  let sabAll = false, sabOne = false;
+  let cloud = [], fix = null, solvedShown = false, anim = null;
+
+  function newClock() {
+    bTrue = 40 + Math.random() * 110;
+    for (const s of sats) s.z = gauss();
+    solvedShown = false;
+  }
+  const active = () => sats.filter(s => s.on);
+  function satClock(s, i) { return (sabAll ? 10 : 0) + (sabOne && i === 0 ? 10 : 0); }
+  function pseudoranges(noiseFn) {
+    return sats.map((s, i) => s.on
+      ? Math.hypot(s.x - rx.x, s.y - rx.y) + Ckm * (bTrue - satClock(s, i)) + sigma * noiseFn(s, i)
+      : null);
+  }
+
+  /* Gauss–Newton over (x, y[, cb]) — cb is clock bias in km */
+  function solveLin(A, b) {
+    const n = b.length, M = A.map((r, i) => r.concat([b[i]]));
+    for (let c = 0; c < n; c++) {
+      let piv = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+      if (Math.abs(M[piv][c]) < 1e-12) return null;
+      [M[c], M[piv]] = [M[piv], M[c]];
+      for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+    }
+    return M.map((r, i) => r[n] / r[i]);
+  }
+  function solve(rho, fixedCb = null) {
+    const S = sats.map((s, i) => ({ s, r: rho[i] })).filter(o => o.r != null);
+    const nUnk = fixedCb == null ? 3 : 2;
+    if (S.length < nUnk) return null;
+    let x = 0, y = 0, cb = fixedCb == null ? 0 : fixedCb;
+    const iters = [{ x, y, cb }];
+    let rms = 0;
+    for (let it = 0; it < 12; it++) {
+      const JtJ = Array.from({ length: nUnk }, () => new Array(nUnk).fill(0)), Jtr = new Array(nUnk).fill(0);
+      rms = 0;
+      for (const { s, r } of S) {
+        const d = Math.hypot(x - s.x, y - s.y) || 1e-9;
+        const res = r - (d + cb);
+        rms += res * res;
+        const J = [(x - s.x) / d, (y - s.y) / d, 1].slice(0, nUnk);
+        for (let a = 0; a < nUnk; a++) { Jtr[a] += J[a] * res; for (let b = 0; b < nUnk; b++) JtJ[a][b] += J[a] * J[b]; }
+      }
+      rms = Math.sqrt(rms / S.length);
+      const dlt = solveLin(JtJ, Jtr);
+      if (!dlt) return null;
+      x += dlt[0]; y += dlt[1]; if (nUnk === 3) cb += dlt[2];
+      iters.push({ x, y, cb });
+      if (Math.hypot(dlt[0], dlt[1]) < 1e-6) break;
+    }
+    // final residual
+    rms = 0;
+    for (const { s, r } of S) { const res = r - (Math.hypot(x - s.x, y - s.y) + cb); rms += res * res; }
+    rms = Math.sqrt(rms / S.length);
+    return { x, y, cb, iters, rms };
+  }
+  function dop() {
+    const S = active();
+    if (S.length < 3) return null;
+    const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+    for (const s of S) {
+      const d = Math.hypot(rx.x - s.x, rx.y - s.y);
+      const h = [(rx.x - s.x) / d, (rx.y - s.y) / d, 1];
+      for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) A[a][b] += h[a] * h[b];
+    }
+    const col = k => solveLin(A, [0, 1, 2].map(i => +(i === k)));
+    const c0 = col(0), c1 = col(1);
+    if (!c0 || !c1) return null;
+    return { h: Math.sqrt(Math.abs(c0[0])), v: Math.sqrt(Math.abs(c1[1])) };
+  }
+
+  function recompute() {
+    const rho = pseudoranges(s => s.z);
+    fix = solve(rho);
+    cloud = [];
+    if (sigma > 0 && active().length >= 3) {
+      for (let k = 0; k < 150; k++) {
+        const f = solve(pseudoranges(() => gauss()));
+        if (f) cloud.push(f);
+      }
+    }
+    updateText(rho);
+  }
+
+  function updateText(rho) {
+    $('#gps-b-v').textContent = guess.toFixed(1) + ' µs';
+    $('#gps-n-v').textContent = sigma ? sigma.toFixed(2) + ' km' : 'none';
+    const n = active().length;
+    const fixedFit = solve(rho, Ckm * guess);
+    const mis = $('#gps-mis');
+    if (fixedFit) {
+      mis.innerHTML = fixedFit.rms < 0.05 + sigma * 0.9 ? `<span class="ok">${fixedFit.rms.toFixed(2)}</span><small>km · met</small>` : `${fixedFit.rms.toFixed(1)}<small>km</small>`;
+    } else mis.textContent = '—';
+    const err = $('#gps-err');
+    if (n < 3 || !fix) { err.innerHTML = `<span class="bad">no fix</span><small>${n} sats</small>`; }
+    else {
+      const e = Math.hypot(fix.x - rx.x, fix.y - rx.y);
+      err.innerHTML = `<span class="${e < 1 ? 'ok' : e < 4 ? 'meh' : 'bad'}">${e.toFixed(2)}</span><small>km</small>`;
+    }
+    const D = dop();
+    $('#gps-hdop').innerHTML = D ? `×${D.h.toFixed(2)}` : '—';
+    $('#gps-vdop').innerHTML = D ? `<span class="${D.v > D.h * 1.3 ? 'meh' : ''}">×${D.v.toFixed(2)}</span>` : '—';
+  }
+
+  const W2S = (x, y) => [ox + (x - WORLD.x0) * sc, oy - (y - WORLD.y0) * sc];
+  const S2W = (px, py) => [(px - ox) / sc + WORLD.x0, (oy - py) / sc + WORLD.y0];
+
+  function draw() {
+    const { ctx, w, h } = R;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#060a10'); g.addColorStop(1, '#0d141d');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    // stars
+    ctx.fillStyle = 'rgba(232,238,245,.25)';
+    for (let i = 0; i < 60; i++) { const sx = (i * 97.3) % w, sy = (i * 53.1) % (h * 0.6); ctx.fillRect(sx, sy, 1, 1); }
+    // ground: a gentle arc of a very large circle
+    const Rearth = 900;
+    const [ecx, ecy] = W2S(0, -Rearth);
+    ctx.beginPath(); ctx.arc(ecx, ecy, Rearth * sc, 0, TAU);
+    ctx.fillStyle = '#121c16'; ctx.fill();
+    ctx.strokeStyle = '#2c4a36'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+    // range circles at the current guess
+    const rho = pseudoranges(s => s.z);
+    sats.forEach((s, i) => {
+      if (!s.on) return;
+      const r = rho[i] - Ckm * guess;
+      if (r <= 0) return;
+      const [cx, cy] = W2S(s.x, s.y);
+      ctx.beginPath(); ctx.arc(cx, cy, r * sc, 0, TAU);
+      ctx.strokeStyle = SAT_COL[i]; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.4; ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+    // noise cloud
+    ctx.fillStyle = 'rgba(232,238,245,.45)';
+    for (const f of cloud) { const [px, py] = W2S(f.x, f.y); ctx.fillRect(px - 1, py - 1, 2, 2); }
+    // solver path
+    if (anim) {
+      const k = Math.min(anim.pts.length - 1, Math.floor(anim.t / 0.28));
+      ctx.strokeStyle = COL.sig; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.2; ctx.beginPath();
+      for (let i = 0; i <= k; i++) { const [px, py] = W2S(anim.pts[i].x, anim.pts[i].y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.stroke(); ctx.setLineDash([]);
+      for (let i = 0; i <= k; i++) {
+        const [px, py] = W2S(anim.pts[i].x, anim.pts[i].y);
+        ctx.fillStyle = COL.sig; ctx.beginPath(); ctx.arc(px, py, 2.5, 0, TAU); ctx.fill();
+        ctx.font = font(9.5); ctx.fillText(i, px + 5, py - 4);
+      }
+    }
+    ctx.restore();
+
+    // satellites
+    ctx.font = font(10.5); ctx.textAlign = 'center';
+    sats.forEach((s, i) => {
+      const [px, py] = W2S(s.x, s.y);
+      ctx.globalAlpha = s.on ? 1 : 0.35;
+      ctx.fillStyle = SAT_COL[i];
+      ctx.fillRect(px - 13, py - 2.5, 8, 5); ctx.fillRect(px + 5, py - 2.5, 8, 5);
+      ctx.fillStyle = '#dfe6ee'; ctx.fillRect(px - 4, py - 4, 8, 8);
+      if (!s.on) {
+        ctx.strokeStyle = COL.fault; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px - 7, py - 7); ctx.lineTo(px + 7, py + 7); ctx.moveTo(px + 7, py - 7); ctx.lineTo(px - 7, py + 7); ctx.stroke();
+      }
+      const clk = satClock(s, i);
+      ctx.fillStyle = clk ? COL.fault : COL.text;
+      ctx.fillText(clk ? `clock +${clk} µs` : `SV${i + 1}`, px, py - 12);
+      ctx.globalAlpha = 1;
+    });
+    // truth
+    const [tx, ty] = W2S(rx.x, rx.y);
+    ctx.fillStyle = COL.bright; ctx.strokeStyle = COL.bg; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx - 7, ty - 14); ctx.lineTo(tx + 7, ty - 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = COL.text; ctx.textAlign = 'left'; ctx.fillText('you', tx + 10, ty - 6);
+    // fix
+    if (fix && active().length >= 3) {
+      const [fx, fy] = W2S(fix.x, fix.y);
+      ctx.strokeStyle = COL.sig; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(fx, fy, 6, 0, TAU); ctx.moveTo(fx - 11, fy); ctx.lineTo(fx + 11, fy); ctx.moveTo(fx, fy - 11); ctx.lineTo(fx, fy + 11); ctx.stroke();
+    }
+    drawInset(ctx, w, h, rho);
+    // HUD
+    const hy = w < 560 ? h - 40 : 20;
+    ctx.font = font(11); ctx.textAlign = 'left'; ctx.fillStyle = COL.text;
+    ctx.fillText(`receiver clock is off by: ${solvedShown && fix ? (fix.cb / Ckm).toFixed(1) + ' µs (solved)' : '??? µs'}`, 12, hy);
+    ctx.fillStyle = 'rgba(141,157,176,.6)';
+    ctx.fillText(`1 µs of clock error = ${(Ckm * 1000).toFixed(0)} m of range`, 12, hy + 16);
+    if (active().length < 3) {
+      ctx.fillStyle = COL.fault; ctx.textAlign = 'center';
+      ctx.fillText('need ≥ 3 satellites in 2-D (≥ 4 in real 3-D life)', w / 2, w < 560 ? h / 2 : h - 16);
+    }
+  }
+
+  /* magnified view around the receiver: 10 km across */
+  function drawInset(ctx, w, h, rho) {
+    const size = Math.round(clamp(w * 0.24, 110, 190)), ix = w - size - 10, iy = 10;
+    const span = 10, k = size / span;
+    const P = (x, y) => [ix + size / 2 + (x - rx.x) * k, iy + size / 2 - (y - rx.y) * k];
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,10,16,.92)'; ctx.fillRect(ix, iy, size, size);
+    ctx.strokeStyle = COL.grid2; ctx.lineWidth = 1; ctx.strokeRect(ix + .5, iy + .5, size - 1, size - 1);
+    ctx.beginPath(); ctx.rect(ix, iy, size, size); ctx.clip();
+    ctx.strokeStyle = COL.grid;
+    for (let d = -4; d <= 4; d += 2) {
+      const [gx, gy] = P(rx.x + d, rx.y + d);
+      ctx.beginPath(); ctx.moveTo(gx, iy); ctx.lineTo(gx, iy + size); ctx.moveTo(ix, gy); ctx.lineTo(ix + size, gy); ctx.stroke();
+    }
+    sats.forEach((s, i) => {
+      if (!s.on) return;
+      const r = rho[i] - Ckm * guess; if (r <= 0) return;
+      const [cx, cy] = P(s.x, s.y);
+      ctx.beginPath(); ctx.arc(cx, cy, r * k, 0, TAU); ctx.strokeStyle = SAT_COL[i]; ctx.globalAlpha = .8; ctx.lineWidth = 1.2; ctx.stroke(); ctx.globalAlpha = 1;
+    });
+    ctx.fillStyle = 'rgba(232,238,245,.55)';
+    for (const f of cloud) { const [px, py] = P(f.x, f.y); ctx.fillRect(px - 1, py - 1, 2, 2); }
+    const [tx, ty] = P(rx.x, rx.y);
+    ctx.strokeStyle = COL.bright; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(tx, ty, 4, 0, TAU); ctx.stroke();
+    if (fix && active().length >= 3) {
+      const [fx, fy] = P(fix.x, fix.y);
+      ctx.strokeStyle = COL.sig; ctx.beginPath(); ctx.moveTo(fx - 7, fy); ctx.lineTo(fx + 7, fy); ctx.moveTo(fx, fy - 7); ctx.lineTo(fx, fy + 7); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.font = font(9.5); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+    ctx.fillText('×10 zoom · 2 km grid', ix + 5, iy + size - 6);
+  }
+
+  /* dragging and tapping */
+  let drag = null;
+  cv.addEventListener('pointerdown', e => {
+    const p = ptr(cv, e);
+    let best = null, bd = 22;
+    sats.forEach((s, i) => { const [px, py] = W2S(s.x, s.y); const d = Math.hypot(px - p.x, py - p.y); if (d < bd) { bd = d; best = { kind: 'sat', i }; } });
+    const [tx, ty] = W2S(rx.x, rx.y - 1.5);
+    if (Math.hypot(tx - p.x, ty - 7 - p.y) < 22 && (!best || Math.hypot(tx - p.x, ty - 7 - p.y) < bd)) best = { kind: 'rx' };
+    if (!best) return;
+    drag = { ...best, x0: p.x, y0: p.y, moved: false };
+    cv.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = ptr(cv, e);
+    if (Math.hypot(p.x - drag.x0, p.y - drag.y0) > 4) drag.moved = true;
+    if (!drag.moved) return;
+    const [wx, wy] = S2W(p.x, p.y);
+    if (drag.kind === 'sat') { const s = sats[drag.i]; s.x = clamp(wx, WORLD.x0 + 4, WORLD.x1 - 4); s.y = clamp(wy, 40, WORLD.y1 - 4); }
+    else { rx.x = clamp(wx, WORLD.x0 + 10, WORLD.x1 - 10); rx.y = clamp(wy, 0, 25); }
+    anim = null;
+    recompute(); draw();
+  });
+  const up = () => {
+    if (drag && !drag.moved && drag.kind === 'sat') { sats[drag.i].on = !sats[drag.i].on; anim = null; recompute(); draw(); }
+    drag = null;
+  };
+  cv.addEventListener('pointerup', up);
+  cv.addEventListener('pointercancel', () => { drag = null; });
+
+  bIn.addEventListener('input', () => { guess = +bIn.value; anim = null; recompute(); draw(); });
+  nIn.addEventListener('input', () => { sigma = +nIn.value; recompute(); draw(); });
+  $('#gps-solve').addEventListener('click', () => {
+    recompute();
+    if (!fix) return;
+    anim = { pts: fix.iters, t: 0, from: guess, to: clamp(fix.cb / Ckm, 0, 300) };
+    solvedShown = true;
+  });
+  const allBtn = $('#gps-all'), oneBtn = $('#gps-one');
+  allBtn.addEventListener('click', () => { sabAll = !sabAll; allBtn.classList.toggle('on', sabAll); recompute(); draw(); });
+  oneBtn.addEventListener('click', () => { sabOne = !sabOne; oneBtn.classList.toggle('on', sabOne); recompute(); draw(); });
+  $('#gps-reset').addEventListener('click', () => {
+    newClock(); guess = 0; bIn.value = 0; anim = null; recompute(); draw();
+  });
+
+  const ex = register($('#fix'), {
+    resize() {
+      R = fit(cv, window.innerWidth <= 640 ? 0.85 : 0.6, 300, 540);
+      sc = Math.min(R.w / (WORLD.x1 - WORLD.x0), R.h / (WORLD.y1 - WORLD.y0));
+      ox = (R.w - (WORLD.x1 - WORLD.x0) * sc) / 2;
+      oy = R.h - (R.h - (WORLD.y1 - WORLD.y0) * sc) / 2;
+      draw();
+    },
+    tick(dt) {
+      if (!anim) return;
+      anim.t += dt;
+      const total = anim.pts.length * 0.28;
+      const u = clamp(anim.t / total, 0, 1);
+      guess = lerp(anim.from, anim.to, 1 - Math.pow(1 - u, 3));
+      bIn.value = guess;
+      updateText(pseudoranges(s => s.z));
+      draw();
+      if (anim.t > total + 1.2) { anim = null; draw(); }
+    },
+  });
+  newClock(); recompute(); ex.resize();
+  io.observe(ex.el);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Two Wrong Answers · Tolerance</title>
+<meta name="description" content="A Kalman filter blends noisy GPS with a drifting accelerometer, and learns the drift.">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M8 40 L18 40 L22 28 L27 50 L32 14 L37 44 L41 34 L56 34' fill='none' stroke='%236ee7a0' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Two Wrong Answers · Tolerance">
+<meta property="og:description" content="A Kalman filter blends noisy GPS with a drifting accelerometer, and learns the drift.">
+<meta property="og:url" content="https://jkastl.github.io/tolerance/kalman/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body class="solo">
+<div class="wrap crumb"><a href="../">← Tolerance</a> · exhibit 04 of 06</div>
+<main>
+<section class="ex" id="blend">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">04</span><h2>Two Wrong Answers</h2></div>
+    <div class="ex-sub">Kalman filter · Kalman, 1960 · Schmidt at NASA Ames, for Apollo</div>
+    <div class="prose">
+      <p>You have two ways to know where the car is, and both are wrong in different ways. <strong>GPS</strong>
+      is noisy and slow (one jittery fix per second), but its errors don't add up. The
+      <strong>accelerometer</strong> is fast and smooth, but you have to integrate it twice to get a
+      position, so every tiny bias turns into error that grows with <em>time squared</em>.</p>
+      <p>A Kalman filter keeps a running guess <em>and a running estimate of how wrong that guess is</em>.
+      The accelerometer moves the guess forward and inflates the uncertainty (the ellipse). Each GPS fix
+      pulls the guess toward it, weighted by which of the two it currently trusts more.</p>
+    </div>
+    <div class="panel">
+      <div class="screen"><canvas id="kf-cv" aria-label="A vehicle on a figure-eight with GPS, dead reckoning, and Kalman estimates"></canvas></div>
+      <div class="controls">
+        <div class="ctl"><label for="kf-g">GPS noise <b id="kf-g-v"></b></label>
+          <input type="range" id="kf-g" min="1" max="30" step="0.5" value="10"></div>
+        <div class="ctl"><label for="kf-a">accel noise <b id="kf-a-v"></b></label>
+          <input type="range" id="kf-a" min="0" max="3" step="0.05" value="0.6"></div>
+        <div class="ctl"><label for="kf-bias">accel bias <b id="kf-bias-v"></b></label>
+          <input type="range" id="kf-bias" min="0" max="0.5" step="0.01" value="0.15"></div>
+        <div class="ctl"><label for="kf-t">filter trusts GPS <b id="kf-t-v"></b></label>
+          <input type="range" id="kf-t" min="-1" max="1" step="0.05" value="0"></div>
+        <div class="btns">
+          <button id="kf-tunnel" class="warn">tunnel (GPS off)</button>
+          <button id="kf-reset">restart</button>
+        </div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="k">GPS only · rms</div><div class="v" id="kf-e-g">—</div></div>
+        <div class="ro"><div class="k">dead reckoning · rms</div><div class="v" id="kf-e-d">—</div></div>
+        <div class="ro"><div class="k">Kalman · rms</div><div class="v" id="kf-e-k">—</div></div>
+        <div class="ro"><div class="k">bias: true / learned</div><div class="v" id="kf-bias-ro" style="font-size:15px">—</div></div>
+      </div>
+      <div class="note"><b style="color:var(--caution)">●</b> GPS fixes &nbsp; <b style="color:var(--fault)">━</b> dead reckoning (accelerometer only) &nbsp; <b style="color:var(--sig)">━</b> Kalman estimate with its 95% ellipse &nbsp; <b>◆</b> truth</div>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Watch the ellipse for a few seconds. It swells between GPS fixes and snaps smaller at each one, so you're watching the filter's confidence in real time.</li>
+        <li>Hold the <b>tunnel</b> button for ten seconds. The filter coasts on the accelerometer, the ellipse balloons, and when GPS returns it snaps back without a jump.</li>
+        <li>Push <b>filter trusts GPS</b> to <b>10× too much</b>. The estimate twitches after every fix. Push it to <b>10× too little</b> and it goes lazy and starts to drift. A badly tuned filter is overconfident about something.</li>
+        <li>Watch the <b>learned bias</b>. The filter was never told the accelerometer is biased. It works that out from how its predictions keep missing the GPS fixes, and then corrects for it.</li>
+      </ol>
+    </div>
+    <div class="deep">
+      <h3>The deep cut</h3>
+      <p>The last point is why this filter flew to the Moon. Its state isn't just position and velocity. It also
+      includes the <em>sensor's own error</em> as something to estimate. Every
+      phone, drone, and airliner running GPS-aided inertial navigation does the same thing: while GPS is
+      available it calibrates the inertial sensors, so when GPS drops out the dead reckoning drifts far less.</p>
+      <p>Kalman's paper was met with skepticism. Stanley Schmidt at NASA Ames made it work with a
+      linearized version for Apollo midcourse navigation, and it ran on a computer with about 4&nbsp;KB of
+      writable memory.</p>
+    </div>
+  </div>
+</section>
+</main>
+<nav class="pager wrap" aria-label="Exhibits"><a class="prev" href="../gps/">←<span class="n">03</span>Where Am I</a><a class="home" href="../">all exhibits</a><a class="next" href="../pulse-ox/">Light Through a Finger<span class="n">05</span>→</a></nav>
+<footer class="page-foot">
+  <div class="wrap">
+    <div class="refs">
+      <h3>Reading</h3>
+      <ul>
+        <li>R. E. Kalman, “A new approach to linear filtering and prediction problems,” <i>J. Basic Eng.</i>, 1960.</li>
+      </ul>
+    </div>
+    <p class="colophon">Everything on this page runs in your browser with no network calls. Shared code: <a href="../core.js">core.js</a>. <a href="https://github.com/jkastl/tolerance">Source</a>.</p>
+  </div>
+</footer>
+<script src="../core.js"></script>
+<script>
+"use strict";
+/* ================================================================
+   04 · TWO WRONG ANSWERS — GPS + accelerometer Kalman filter
+   ================================================================ */
+(() => {
+  const cv = $('#kf-cv');
+  const gIn = $('#kf-g'), aIn = $('#kf-a'), bIn = $('#kf-bias'), tIn = $('#kf-t');
+  const tunnelBtn = $('#kf-tunnel');
+  const A = 150, Bm = 85, W1 = 0.16, W2 = 0.32;     // figure-eight, metres and rad/s
+  const DT = 0.01, GPS_PERIOD = 1;
+  let R, sc, cx, cy;
+  let sg = +gIn.value, sa = +aIn.value, biasMag = +bIn.value, trustExp = -tIn.value;
+  let tunnel = false, tunnelHeld = false;
+
+  // one 3-state filter per axis: [position, velocity, accel bias]
+  function makeKF(p0, v0) {
+    return { s: [p0, v0, 0], P: [[sg * sg, 0, 0], [0, 1, 0], [0, 0, 0.25]] };
+  }
+  function kfPredict(k, u, dt) {
+    const [p, v, b] = k.s, a = u - b;
+    k.s = [p + v * dt + 0.5 * a * dt * dt, v + a * dt, b];
+    const F = [[1, dt, -0.5 * dt * dt], [0, 1, -dt], [0, 0, 1]];
+    const P = k.P;
+    const FP = F.map(r => [0, 1, 2].map(j => r[0] * P[0][j] + r[1] * P[1][j] + r[2] * P[2][j]));
+    const N = FP.map(r => [0, 1, 2].map(j => r[0] * F[j][0] + r[1] * F[j][1] + r[2] * F[j][2]));
+    const q = Math.max(sa, 0.05) ** 2, G = [0.5 * dt * dt, dt, 0];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) N[i][j] += q * G[i] * G[j];
+    N[2][2] += 1e-5 * dt;   // bias may wander slowly
+    k.P = N;
+  }
+  function kfUpdate(k, z, Rv) {
+    const P = k.P, S = P[0][0] + Rv;
+    const K = [P[0][0] / S, P[1][0] / S, P[2][0] / S];
+    const y = z - k.s[0];
+    k.s = k.s.map((v, i) => v + K[i] * y);
+    const row0 = P[0].slice();
+    k.P = P.map((r, i) => r.map((v, j) => v - K[i] * row0[j]));
+  }
+
+  let t, truth, bias, kx, ky, dr, gpsFix, gpsTimer, trails, errs, errTimer, gpsLog;
+  function truthAt(t) {
+    return {
+      x: A * Math.sin(W1 * t), y: Bm * Math.sin(W2 * t),
+      vx: A * W1 * Math.cos(W1 * t), vy: Bm * W2 * Math.cos(W2 * t),
+      ax: -A * W1 * W1 * Math.sin(W1 * t), ay: -Bm * W2 * W2 * Math.sin(W2 * t),
+    };
+  }
+  function reset() {
+    t = 0; truth = truthAt(0);
+    const th = Math.random() * TAU;
+    bias = { x: biasMag * Math.cos(th), y: biasMag * Math.sin(th), th };
+    kx = makeKF(truth.x, truth.vx); ky = makeKF(truth.y, truth.vy);
+    dr = { x: truth.x, y: truth.y, vx: truth.vx, vy: truth.vy };
+    gpsFix = { x: truth.x, y: truth.y }; gpsTimer = 0;
+    trails = { truth: [], kf: [], dr: [] }; gpsLog = [];
+    errs = { g: [], d: [], k: [] }; errTimer = 0;
+  }
+
+  function step() {
+    t += DT;
+    truth = truthAt(t);
+    const ux = truth.ax + bias.x + sa * gauss(), uy = truth.ay + bias.y + sa * gauss();
+    // dead reckoning: integrate the raw accelerometer
+    dr.x += dr.vx * DT + 0.5 * ux * DT * DT; dr.vx += ux * DT;
+    dr.y += dr.vy * DT + 0.5 * uy * DT * DT; dr.vy += uy * DT;
+    kfPredict(kx, ux, DT); kfPredict(ky, uy, DT);
+    gpsTimer += DT;
+    if (gpsTimer >= GPS_PERIOD) {
+      gpsTimer -= GPS_PERIOD;
+      if (!tunnel) {
+        gpsFix = { x: truth.x + sg * gauss(), y: truth.y + sg * gauss() };
+        gpsLog.push({ ...gpsFix, t }); if (gpsLog.length > 12) gpsLog.shift();
+        const Rv = (sg * Math.pow(10, trustExp)) ** 2;
+        kfUpdate(kx, gpsFix.x, Rv); kfUpdate(ky, gpsFix.y, Rv);
+      }
+    }
+    errTimer += DT;
+    if (errTimer >= 0.05) {
+      errTimer = 0;
+      const push = (arr, e) => { arr.push(e * e); if (arr.length > 200) arr.shift(); };
+      push(errs.g, Math.hypot(gpsFix.x - truth.x, gpsFix.y - truth.y));
+      push(errs.d, Math.hypot(dr.x - truth.x, dr.y - truth.y));
+      push(errs.k, Math.hypot(kx.s[0] - truth.x, ky.s[0] - truth.y));
+      const tp = (arr, p) => { arr.push(p); if (arr.length > 180) arr.shift(); };
+      tp(trails.truth, [truth.x, truth.y]); tp(trails.kf, [kx.s[0], ky.s[0]]); tp(trails.dr, [dr.x, dr.y]);
+    }
+  }
+
+  const W = (x, y) => [cx + x * sc, cy - y * sc];
+
+  function draw() {
+    const { ctx, w, h } = R;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    // grid, 25 m
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    for (let gx = -250; gx <= 250; gx += 25) { const [px] = W(gx, 0); ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke(); }
+    for (let gy = -150; gy <= 150; gy += 25) { const [, py] = W(0, gy); ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(w, py); ctx.stroke(); }
+    // road
+    ctx.strokeStyle = '#1d2835'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath();
+    for (let i = 0; i <= 240; i++) { const q = truthAt(i / 240 * TAU / W1); const [px, py] = W(q.x, q.y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke(); ctx.lineCap = 'butt';
+    // scale bar
+    ctx.fillStyle = COL.text; ctx.font = font(10);
+    const [s0] = W(0, 0), [s1] = W(50, 0);
+    ctx.fillRect(12, h - 14, s1 - s0, 2); ctx.fillText('50 m', 12, h - 20);
+
+    const trail = (arr, col, width) => {
+      ctx.strokeStyle = col; ctx.lineWidth = width; ctx.beginPath();
+      arr.forEach(([x, y], i) => { const [px, py] = W(x, y); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
+      ctx.stroke();
+    };
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+    trail(trails.dr, 'rgba(255,107,91,.8)', 1.6);
+    trail(trails.kf, 'rgba(110,231,160,.9)', 2);
+    // GPS fixes
+    gpsLog.forEach((g, i) => {
+      const [px, py] = W(g.x, g.y), a = (i + 1) / gpsLog.length;
+      ctx.fillStyle = `rgba(255,200,97,${0.25 + 0.75 * a})`;
+      ctx.beginPath(); ctx.arc(px, py, i === gpsLog.length - 1 ? 4 : 2.6, 0, TAU); ctx.fill();
+    });
+    // covariance ellipse (95% ≈ 2.45σ for 2-D)
+    const [kxp, kyp] = W(kx.s[0], ky.s[0]);
+    const ex = 2.45 * Math.sqrt(Math.max(kx.P[0][0], 0)) * sc, ey = 2.45 * Math.sqrt(Math.max(ky.P[0][0], 0)) * sc;
+    ctx.beginPath(); ctx.ellipse(kxp, kyp, Math.max(ex, 1), Math.max(ey, 1), 0, 0, TAU);
+    ctx.fillStyle = 'rgba(110,231,160,.10)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(110,231,160,.8)'; ctx.lineWidth = 1.2; ctx.stroke();
+    ctx.fillStyle = COL.sig; ctx.beginPath(); ctx.arc(kxp, kyp, 3.5, 0, TAU); ctx.fill();
+    // dead reckoning head
+    const [dx, dy] = W(dr.x, dr.y);
+    ctx.fillStyle = COL.fault; ctx.beginPath(); ctx.arc(dx, dy, 3.5, 0, TAU); ctx.fill();
+    // truth
+    const [tx, ty] = W(truth.x, truth.y);
+    const ang = Math.atan2(-truth.vy, truth.vx);
+    ctx.save(); ctx.translate(tx, ty); ctx.rotate(ang);
+    ctx.fillStyle = COL.bright; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(0, 5); ctx.lineTo(-8, 0); ctx.lineTo(0, -5); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+    // dead reckoning off-screen marker
+    if (dx < 0 || dx > w || dy < 0 || dy > h) {
+      const mx = clamp(dx, 14, w - 14), my = clamp(dy, 14, h - 14);
+      const d = Math.hypot(dr.x - truth.x, dr.y - truth.y);
+      ctx.fillStyle = COL.fault; ctx.font = font(10.5);
+      ctx.textAlign = mx > w / 2 ? 'right' : 'left';
+      ctx.fillText(`dead reckoning: ${d > 9999 ? (d / 1000).toFixed(0) + ' km' : d.toFixed(0) + ' m'} away →`, mx + (mx > w / 2 ? -4 : 4), my + 4);
+      ctx.textAlign = 'left';
+    }
+    // HUD
+    ctx.font = font(11); ctx.fillStyle = tunnel ? COL.fault : COL.text; ctx.textAlign = 'right';
+    ctx.fillText(tunnel ? 'GPS: NO SIGNAL' : `GPS: 1 fix/s · σ ${sg} m`, w - 12, 20);
+    ctx.fillStyle = COL.text;
+    ctx.fillText(`t = ${t.toFixed(0)} s`, w - 12, 36);
+    ctx.textAlign = 'left';
+  }
+
+  function updateText() {
+    $('#kf-g-v').textContent = sg + ' m';
+    $('#kf-a-v').textContent = sa.toFixed(2) + ' m/s²';
+    $('#kf-bias-v').textContent = biasMag.toFixed(2) + ' m/s²';
+    const m = Math.pow(10, trustExp);
+    $('#kf-t-v').textContent = Math.abs(trustExp) < 0.03 ? 'correctly' : m > 1 ? `${m.toFixed(1)}× too little` : `${(1 / m).toFixed(1)}× too much`;
+  }
+  function updateReadouts() {
+    const rms = a => a.length ? Math.sqrt(a.reduce((s, v) => s + v, 0) / a.length) : 0;
+    const g = rms(errs.g), d = rms(errs.d), k = rms(errs.k);
+    const f = v => v > 9999 ? (v / 1000).toFixed(1) + '<small>km</small>' : v.toFixed(1) + '<small>m</small>';
+    $('#kf-e-g').innerHTML = f(g);
+    $('#kf-e-d').innerHTML = `<span class="${d > g ? 'bad' : ''}">${f(d)}</span>`;
+    $('#kf-e-k').innerHTML = `<span class="${k < g && k < d ? 'ok' : ''}">${f(k)}</span>`;
+    $('#kf-bias-ro').innerHTML = `${biasMag.toFixed(2)} / <span class="ok">${Math.hypot(kx.s[2], ky.s[2]).toFixed(2)}</span><small>m/s²</small>`;
+  }
+
+  gIn.addEventListener('input', () => { sg = +gIn.value; updateText(); });
+  aIn.addEventListener('input', () => { sa = +aIn.value; updateText(); });
+  bIn.addEventListener('input', () => {
+    biasMag = +bIn.value; bias.x = biasMag * Math.cos(bias.th); bias.y = biasMag * Math.sin(bias.th); updateText();
+  });
+  tIn.addEventListener('input', () => { trustExp = -tIn.value; updateText(); });
+  // tunnel: toggles on click, or hold for momentary
+  let downAt = 0;
+  const setTunnel = v => { tunnel = v; tunnelBtn.classList.toggle('on', v); };
+  tunnelBtn.addEventListener('pointerdown', () => { downAt = performance.now(); tunnelHeld = tunnel; setTunnel(true); });
+  tunnelBtn.addEventListener('pointerup', () => {
+    const held = performance.now() - downAt > 400;
+    if (held) setTunnel(false); else setTunnel(!tunnelHeld);
+  });
+  tunnelBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTunnel(!tunnel); } });
+  $('#kf-reset').addEventListener('click', () => { reset(); draw(); });
+
+  let roTimer = 0;
+  const ex = register($('#blend'), {
+    resize() {
+      R = fit(cv, window.innerWidth <= 640 ? 0.8 : 0.56, 280, 500);
+      sc = Math.min(R.w / 360, R.h / 220);
+      cx = R.w / 2; cy = R.h / 2;
+      draw();
+    },
+    tick(dt) {
+      const n = Math.round(dt / DT);
+      for (let i = 0; i < n; i++) step();
+      roTimer += dt;
+      if (roTimer > 0.25) { roTimer = 0; updateReadouts(); }
+      draw();
+    },
+  });
+  reset(); updateText(); ex.resize(); updateReadouts();
+  io.observe(ex.el);
+})();
+</script>
+</body>
+</html>

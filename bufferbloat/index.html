@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drop It on Purpose · Tolerance</title>
+<meta name="description" content="Why a router that refuses to drop packets ruins your video call, and the fix.">
+<meta name="theme-color" content="#f3efe6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121418" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cpath d='M8 40 L18 40 L22 28 L27 50 L32 14 L37 44 L41 34 L56 34' fill='none' stroke='%236ee7a0' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Drop It on Purpose · Tolerance">
+<meta property="og:description" content="Why a router that refuses to drop packets ruins your video call, and the fix.">
+<meta property="og:url" content="https://jkastl.github.io/tolerance/bufferbloat/">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body class="solo">
+<div class="wrap crumb"><a href="../">← Tolerance</a> · exhibit 06 of 06</div>
+<main>
+<section class="ex" id="bloat">
+  <div class="wrap">
+    <div class="ex-head"><span class="ex-num">06</span><h2>Drop It on Purpose</h2></div>
+    <div class="ex-sub">TCP congestion control · bufferbloat · CoDel (Nichols &amp; Jacobson, 2012) · fq_codel (RFC 8290)</div>
+    <div class="prose">
+      <p>The internet delivers your bytes reliably over links that lose packets, and TCP depends on those
+      losses. TCP has no idea how fast the path is, so it speeds up until a packet gets
+      dropped, reads the drop as "too fast," backs off, and repeats. Van Jacobson added this in 1988
+      after the early internet went into congestion collapse.</p>
+      <p>Then memory got cheap. Routers and cable modems got huge buffers, so they could avoid dropping anything
+      until a full second of traffic was queued. TCP never gets its signal, so it fills the buffer, and every
+      packet behind it waits in line, including your video call. A router that refuses to drop
+      packets is hiding the one signal TCP relies on.</p>
+    </div>
+    <div class="panel">
+      <div class="screen"><canvas id="bb-cv" aria-label="Bottleneck queue, ping latency, and TCP window over time"></canvas></div>
+      <div class="controls">
+        <div class="ctl" style="flex-basis:270px"><label>queue</label>
+          <div class="seg" id="bb-aqm">
+            <input type="radio" name="bq" id="bq-fifo" value="fifo" checked><label for="bq-fifo">plain FIFO</label>
+            <input type="radio" name="bq" id="bq-codel" value="codel"><label for="bq-codel">CoDel</label>
+            <input type="radio" name="bq" id="bq-fq" value="fq"><label for="bq-fq">fq_codel</label>
+          </div></div>
+        <div class="ctl"><label>uploads running</label>
+          <div class="seg" id="bb-n">
+            <input type="radio" name="bn" id="bn0" value="0"><label for="bn0">0</label>
+            <input type="radio" name="bn" id="bn1" value="1" checked><label for="bn1">1</label>
+            <input type="radio" name="bn" id="bn2" value="2"><label for="bn2">2</label>
+            <input type="radio" name="bn" id="bn3" value="3"><label for="bn3">3</label>
+          </div></div>
+        <div class="ctl"><label for="bb-rate">uplink <b id="bb-rate-v"></b></label>
+          <input type="range" id="bb-rate" min="0" max="1" step="0.01" value="0.5"></div>
+        <div class="ctl"><label for="bb-buf">buffer <b id="bb-buf-v"></b></label>
+          <input type="range" id="bb-buf" min="0" max="1" step="0.01" value="0.83"></div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><div class="k">ping now</div><div class="v" id="bb-ping">—</div></div>
+        <div class="ro"><div class="k">video call</div><div class="v" id="bb-call">—</div></div>
+        <div class="ro"><div class="k">link used</div><div class="v" id="bb-util">—</div></div>
+        <div class="ro"><div class="k">packets dropped</div><div class="v" id="bb-drop">—</div></div>
+      </div>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Leave it on <b>plain FIFO</b> with one upload. Ping starts near 30&nbsp;ms, then climbs past a full second as TCP fills the buffer, and it stays there. Your link is 100% used and useless for anything interactive.</li>
+        <li>Shrink the <b>router buffer</b>. Latency drops and throughput barely changes. The extra buffer wasn't adding speed, only delay.</li>
+        <li>Switch to <b>CoDel</b>. It watches how long packets have been <em>waiting</em>, and once that stays above 5&nbsp;ms for 100&nbsp;ms it starts dropping, gently at first and then more often. TCP gets its signal early and the queue stays short.</li>
+        <li>Switch to <b>fq_codel</b> and add uploads. Each flow gets its own queue, and sparse flows like your ping skip past the bulk. The "Smart Queues" checkbox on some home routers is this algorithm.</li>
+      </ol>
+    </div>
+    <div class="deep">
+      <h3>The deep cut</h3>
+      <p>In October 1986 the link between Lawrence Berkeley Lab and UC Berkeley, 400 yards and a few
+      router hops apart, dropped from 32&nbsp;kbit/s to 40&nbsp;bit/s. Every sender kept
+      retransmitting into a network that was already drowning. Jacobson's fix, which treats loss as a
+      congestion signal and backs off multiplicatively, is why the internet grew past that point.</p>
+      <p>Bufferbloat is that fix breaking from the opposite direction. Jim Gettys named it in 2010
+      while trying to work out why his home connection became unusable whenever he uploaded a file. The cure
+      wasn't more bandwidth. It was to drop packets deliberately, before anyone has to wait.</p>
+    </div>
+  </div>
+</section>
+</main>
+<nav class="pager wrap" aria-label="Exhibits"><a class="prev" href="../pulse-ox/">←<span class="n">05</span>Light Through a Finger</a><a class="home" href="../">all exhibits</a><a class="next" href="../#lab">The Lab<span class="n">07+</span>→</a></nav>
+<footer class="page-foot">
+  <div class="wrap">
+    <div class="refs">
+      <h3>Reading</h3>
+      <ul>
+        <li>V. Jacobson, “Congestion avoidance and control,” SIGCOMM 1988. K. Nichols &amp; V. Jacobson, “Controlling queue delay,” <i>ACM Queue</i>, 2012.</li>
+      </ul>
+    </div>
+    <p class="colophon">Everything on this page runs in your browser with no network calls. Shared code: <a href="../core.js">core.js</a>. <a href="https://github.com/jkastl/tolerance">Source</a>.</p>
+  </div>
+</footer>
+<script src="../core.js"></script>
+<script>
+"use strict";
+/* ================================================================
+   06 · DROP IT ON PURPOSE — TCP Reno through a bottleneck queue
+   ================================================================ */
+(() => {
+  const cv = $('#bb-cv');
+  const aqmSeg = $('#bb-aqm'), nSeg = $('#bb-n'), rateIn = $('#bb-rate'), bufIn = $('#bb-buf');
+  const ONE_WAY = 15;                  // ms each direction, so 30 ms base RTT
+  const PING_EVERY = 100, PING_SIZE = 0.05;
+  const TARGET = 5, INTERVAL = 100;    // CoDel constants, ms
+  const HIST_MS = 20000;
+  let R;
+  const rateOf = v => Math.round(Math.pow(10, lerp(Math.log10(2), Math.log10(100), v)));    // Mbps
+  const bufOf = v => Math.round(Math.pow(10, lerp(Math.log10(16), Math.log10(4096), v)));   // packets
+  let mbps = rateOf(+rateIn.value), bufPkts = bufOf(+bufIn.value);
+  let aqm = radioValue(aqmSeg), nFlows = +radioValue(nSeg);
+  const pktPerMs = () => mbps / 12;    // 1500-byte packets
+
+  let qSize = 0;
+  const take = q => { const p = q.pkts.shift(); if (p) qSize -= p.size; return p; };
+  let now, flows, toQueue, acks, losses, queues, credit, nextPing, pingLog, cwndLog, qLog, drops, served, dropLog;
+  function newFlow(id) { return { id, cwnd: 2, ssthresh: 1e9, inflight: 0, recUntil: 0, srtt: 30, wMax: 0, epoch: 0, K: 0 }; }
+  function newCodel() { return { firstAbove: 0, dropping: false, dropNext: 0, count: 0, lastCount: 0 }; }
+  function reset() {
+    now = 0; flows = []; for (let i = 0; i < 3; i++) flows.push(newFlow(i));
+    toQueue = []; acks = []; losses = [];
+    queues = { shared: { pkts: [], codel: newCodel() }, per: [0, 1, 2, 'ping'].map(() => ({ pkts: [], codel: newCodel() })) };
+    qSize = 0; credit = 0; nextPing = 0; pingLog = []; cwndLog = []; qLog = []; drops = 0; served = []; dropLog = [];
+  }
+  const qIndex = f => f === 'ping' ? 3 : f;
+  function totalQueued() {
+    if (aqm !== 'fq') return queues.shared.pkts.length;
+    return queues.per.reduce((s, q) => s + q.pkts.length, 0);
+  }
+  function queueDelayEstimate() { return Math.max(0, qSize) / pktPerMs(); }
+  function dropPkt(p) {
+    drops++; dropLog.push(now);
+    if (p.f === 'ping') { pingLog.push({ t: now, rtt: null }); return; }
+    losses.push({ t: now + ONE_WAY + queueDelayEstimate() + ONE_WAY, f: p.f });
+  }
+  function enqueue(p) {
+    if (totalQueued() >= bufPkts) { dropPkt(p); return; }
+    p.enq = now; qSize += p.size;
+    (aqm === 'fq' ? queues.per[qIndex(p.f)] : queues.shared).pkts.push(p);
+  }
+  // CoDel dequeue (Nichols & Jacobson, simplified but faithful to the control law)
+  function codelDequeue(q) {
+    const c = q.codel;
+    const okToDrop = p => {
+      if (!p) { c.firstAbove = 0; return false; }
+      const soj = now - p.enq;
+      if (soj < TARGET || q.pkts.length <= 1) { c.firstAbove = 0; return false; }
+      if (!c.firstAbove) { c.firstAbove = now + INTERVAL; return false; }
+      return now >= c.firstAbove;
+    };
+    let p = take(q);
+    let drop = okToDrop(p);
+    if (c.dropping) {
+      if (!drop) c.dropping = false;
+      else {
+        while (now >= c.dropNext && c.dropping) {
+          dropPkt(p); c.count++;
+          p = take(q); drop = okToDrop(p);
+          if (!drop) c.dropping = false;
+          else c.dropNext += INTERVAL / Math.sqrt(c.count);
+        }
+      }
+    } else if (drop) {
+      dropPkt(p);
+      p = take(q); okToDrop(p);
+      c.dropping = true;
+      const delta = c.count - c.lastCount;
+      c.count = (delta > 1 && now - c.dropNext < 16 * INTERVAL) ? delta : 1;
+      c.dropNext = now + INTERVAL / Math.sqrt(c.count);
+      c.lastCount = c.count;
+    }
+    return p || null;
+  }
+  let rr = 0;
+  function dequeue() {
+    if (aqm === 'fifo') return take(queues.shared) || null;
+    if (aqm === 'codel') return codelDequeue(queues.shared);
+    // fq_codel: sparse (ping) queue first, then round-robin over bulk flows
+    const ping = queues.per[3];
+    if (ping.pkts.length) return codelDequeue(ping);
+    for (let k = 0; k < 3; k++) {
+      const i = (rr + k) % 3;
+      if (queues.per[i].pkts.length) { rr = (i + 1) % 3; const p = codelDequeue(queues.per[i]); if (p) return p; }
+    }
+    return null;
+  }
+
+  function stepMs() {
+    now++;
+    // arrivals at the bottleneck
+    while (toQueue.length && toQueue[0].t <= now) enqueue(toQueue.shift().p);
+    // link service
+    credit += pktPerMs();
+    let sentThisMs = 0;
+    while (credit > 0) {
+      const p = dequeue();
+      if (!p) { credit = Math.min(credit, pktPerMs()); break; }
+      credit -= p.size; sentThisMs += p.size;
+      acks.push({ t: now + ONE_WAY, p });
+    }
+    served.push(sentThisMs); if (served.length > 2000) served.shift();
+    // ACKs and loss signals back at the sender
+    while (acks.length && acks[0].t <= now) {
+      const { p } = acks.shift();
+      if (p.f === 'ping') { pingLog.push({ t: now, rtt: now - p.sent }); continue; }
+      const fl = flows[p.f]; fl.inflight--;
+      fl.srtt = 0.9 * fl.srtt + 0.1 * (now - p.sent);
+      if (fl.cwnd < fl.ssthresh) fl.cwnd += 1;
+      else {
+        // CUBIC: grow toward W(t) = C(t − K)³ + Wmax, the default in Linux, macOS and Windows
+        const tt = (now - fl.epoch) / 1000;
+        const target = 0.4 * Math.pow(tt - fl.K, 3) + fl.wMax;
+        fl.cwnd += target > fl.cwnd ? Math.min(1, (target - fl.cwnd) / fl.cwnd) : 0.01 / fl.cwnd;
+        fl.cwnd = Math.max(fl.cwnd, 2);
+      }
+      fl.cwnd = Math.min(fl.cwnd, 20000);
+    }
+    losses.sort((a, b) => a.t - b.t);
+    while (losses.length && losses[0].t <= now) {
+      const { f } = losses.shift(); const fl = flows[f];
+      fl.inflight--;
+      if (now >= fl.recUntil) {
+        fl.wMax = fl.cwnd; fl.cwnd = Math.max(2, fl.cwnd * 0.7); fl.ssthresh = fl.cwnd;
+        fl.epoch = now; fl.K = Math.cbrt(fl.wMax * 0.3 / 0.4);
+        fl.recUntil = now + fl.srtt;
+      }
+    }
+    // senders
+    for (let i = 0; i < 3; i++) {
+      const fl = flows[i];
+      if (i >= nFlows) { if (fl.inflight <= 0) Object.assign(fl, newFlow(i)); continue; }
+      let burst = 0;
+      while (fl.inflight < Math.floor(fl.cwnd) && burst++ < 64) {
+        fl.inflight++;
+        toQueue.push({ t: now + ONE_WAY, p: { f: i, sent: now, size: 1 } });
+      }
+    }
+    if (now >= nextPing) {
+      nextPing = now + PING_EVERY;
+      toQueue.push({ t: now + ONE_WAY, p: { f: 'ping', sent: now, size: PING_SIZE } });
+    }
+    if (now % 50 === 0) {
+      cwndLog.push({ t: now, w: flows.map((f, i) => i < nFlows ? f.cwnd : null) });
+      qLog.push({ t: now, q: queueDelayEstimate() });
+    }
+    const cut = now - HIST_MS;
+    while (pingLog.length && pingLog[0].t < cut) pingLog.shift();
+    while (cwndLog.length && cwndLog[0].t < cut) cwndLog.shift();
+    while (qLog.length && qLog[0].t < cut) qLog.shift();
+    while (dropLog.length && dropLog[0] < now - 5000) dropLog.shift();
+  }
+
+  const FLOW_COL = [COL.ir, COL.violet, '#ff9ecf'];
+  function draw() {
+    const { ctx, w, h } = R;
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    const pad = 12;
+    // ---- the pipe: queue fill ----
+    const pipeY = 26, pipeH = 26, pipeX = pad + 70, pipeW = w - pipeX - pad - 60;
+    ctx.font = font(10.5); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+    ctx.fillText('ROUTER', pad, pipeY + 11); ctx.fillText('BUFFER', pad, pipeY + 24);
+    ctx.strokeStyle = COL.grid2; ctx.lineWidth = 1; ctx.strokeRect(pipeX, pipeY, pipeW, pipeH);
+    const all = aqm === 'fq' ? queues.per : [queues.shared];
+    const qTotal = totalQueued();
+    const cells = Math.min(bufPkts, 400), perCell = bufPkts / cells, cw = pipeW / cells;
+    // draw oldest at the right (the link end)
+    let pk = [];
+    for (const q of all) pk = pk.concat(q.pkts);
+    pk.sort((a, b) => a.enq - b.enq);
+    for (let c = 0; c < cells; c++) {
+      const idx = Math.floor(c * perCell);
+      if (idx >= pk.length) break;
+      const p = pk[idx];
+      ctx.fillStyle = p.f === 'ping' ? COL.caution : FLOW_COL[p.f];
+      ctx.globalAlpha = p.f === 'ping' ? 1 : 0.75;
+      ctx.fillRect(pipeX + pipeW - (c + 1) * cw, pipeY + 3, Math.max(1, cw - (cw > 3 ? 1 : 0)), pipeH - 6);
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+    ctx.fillText('→ link', pipeX + pipeW + 6, pipeY + 17);
+    const qd = queueDelayEstimate();
+    ctx.fillStyle = qd > 100 ? COL.fault : qd > 20 ? COL.caution : COL.sig;
+    ctx.fillText(`${qTotal} packets queued = ${qd < 1000 ? qd.toFixed(0) + ' ms' : (qd / 1000).toFixed(2) + ' s'} of waiting`, pipeX, pipeY + pipeH + 15);
+    const narrow = w < 560;
+    ctx.fillStyle = COL.text; ctx.textAlign = narrow ? 'left' : 'right';
+    ctx.fillText(`capacity ${bufPkts} pkts = ${(bufPkts / pktPerMs()).toFixed(0)} ms`, narrow ? pipeX : pipeX + pipeW, pipeY + pipeH + (narrow ? 30 : 15));
+
+    // ---- charts ----
+    const cTop = pipeY + pipeH + (narrow ? 50 : 34), cH = (h - cTop - 20 - 22) / 2;
+    const plotX = pad + 38, plotW = w - plotX - pad;
+    const X = t => plotX + (1 - (now - t) / HIST_MS) * plotW;
+    // ping chart (log y: 20 ms .. 3 s)
+    const lo = Math.log10(20), hi = Math.log10(3000);
+    const Yp = ms => cTop + cH - (Math.log10(clamp(ms, 20, 3000)) - lo) / (hi - lo) * cH;
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.fillStyle = COL.text; ctx.textAlign = 'right';
+    for (const v of [30, 100, 300, 1000, 3000]) {
+      ctx.beginPath(); ctx.moveTo(plotX, Yp(v)); ctx.lineTo(plotX + plotW, Yp(v)); ctx.stroke();
+      ctx.fillText(v >= 1000 ? v / 1000 + 's' : v, plotX - 5, Yp(v) + 3);
+    }
+    ctx.fillStyle = 'rgba(255,107,91,.07)'; ctx.fillRect(plotX, cTop, plotW, Yp(300) - cTop);
+    ctx.textAlign = 'left'; ctx.fillStyle = COL.caution; ctx.fillText('PING (ms, log scale)', plotX + 4, cTop + 11);
+    ctx.fillStyle = 'rgba(255,107,91,.7)'; ctx.textAlign = 'right'; ctx.fillText(narrow ? 'unusable' : 'conversation breaks down', plotX + plotW - 4, cTop + 11);
+    ctx.strokeStyle = COL.caution; ctx.lineWidth = 1.6; ctx.beginPath();
+    let started = false;
+    for (const s of pingLog) {
+      if (s.rtt == null) { ctx.save(); ctx.fillStyle = COL.fault; ctx.fillRect(X(s.t) - 1, cTop, 2, 6); ctx.restore(); started = false; continue; }
+      const x = X(s.t), y = Yp(s.rtt);
+      started ? ctx.lineTo(x, y) : ctx.moveTo(x, y); started = true;
+    }
+    ctx.stroke();
+    // cwnd chart
+    const c2 = cTop + cH + 20;
+    let maxW = 10; for (const s of cwndLog) for (const v of s.w) if (v != null && v > maxW) maxW = v;
+    maxW = Math.pow(2, Math.ceil(Math.log2(maxW)));
+    const Yw = v => c2 + cH - v / maxW * cH;
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1; ctx.fillStyle = COL.text; ctx.textAlign = 'right';
+    for (const f of [0, 0.5, 1]) { ctx.beginPath(); ctx.moveTo(plotX, Yw(maxW * f)); ctx.lineTo(plotX + plotW, Yw(maxW * f)); ctx.stroke(); ctx.fillText(Math.round(maxW * f), plotX - 5, Yw(maxW * f) + 3); }
+    // what the pipe actually needs: bandwidth × base RTT
+    const bdp = pktPerMs() * 2 * ONE_WAY;
+    if (bdp < maxW) {
+      ctx.setLineDash([3, 3]); ctx.strokeStyle = COL.sig; ctx.beginPath(); ctx.moveTo(plotX, Yw(bdp)); ctx.lineTo(plotX + plotW, Yw(bdp)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = COL.sig; ctx.textAlign = 'right'; ctx.fillText(`all the link needs: ${Math.round(bdp)}`, plotX + plotW - 4, Yw(bdp) - 4);
+    }
+    ctx.textAlign = 'left'; ctx.fillStyle = COL.text; ctx.fillText('TCP WINDOW (packets in flight)', plotX + 4, c2 + 11);
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = FLOW_COL[i]; ctx.lineWidth = 1.5; ctx.beginPath();
+      let s0 = false;
+      for (const s of cwndLog) {
+        const v = s.w[i]; if (v == null) { s0 = false; continue; }
+        const x = X(s.t), y = Yw(v); s0 ? ctx.lineTo(x, y) : ctx.moveTo(x, y); s0 = true;
+      }
+      ctx.stroke();
+    }
+    ctx.fillStyle = COL.text; ctx.textAlign = 'right'; ctx.fillText('now', plotX + plotW, h - 8);
+    ctx.textAlign = 'left'; ctx.fillText('−20 s', plotX, h - 8);
+  }
+
+  let roTimer = 0;
+  function updateText() {
+    $('#bb-rate-v').textContent = mbps + ' Mbps';
+    const ms = bufPkts / pktPerMs();
+    $('#bb-buf-v').textContent = `${bufPkts} pkts · ${ms < 1000 ? ms.toFixed(0) + ' ms' : (ms / 1000).toFixed(1) + ' s'}`;
+  }
+  function updateReadouts() {
+    const recent = pingLog.filter(s => s.rtt != null).slice(-5);
+    const p = recent.length ? recent.reduce((s, v) => s + v.rtt, 0) / recent.length : null;
+    $('#bb-ping').innerHTML = p == null ? '—' : `<span class="${p > 300 ? 'bad' : p > 100 ? 'meh' : 'ok'}">${p < 1000 ? p.toFixed(0) : (p / 1000).toFixed(2)}</span><small>${p < 1000 ? 'ms' : 's'}</small>`;
+    $('#bb-call').innerHTML = p == null ? '—' : p < 100 ? '<span class="ok">fine</span>' : p < 300 ? '<span class="meh">laggy</span>' : '<span class="bad">robot voice</span>';
+    const s = served.slice(-2000); const util = s.length ? s.reduce((a, b) => a + b, 0) / s.length / pktPerMs() : 0;
+    $('#bb-util').innerHTML = `${Math.round(Math.min(1, util) * 100)}<small>%</small>`;
+    $('#bb-drop').innerHTML = `${(dropLog.length / 5).toFixed(1)}<small>/ s</small>`;
+  }
+
+  aqmSeg.addEventListener('change', () => {
+    const old = aqm; aqm = radioValue(aqmSeg);
+    // move queued packets between the shared and per-flow queues
+    let pk = [];
+    if (old === 'fq') { for (const q of queues.per) { pk = pk.concat(q.pkts); q.pkts = []; q.codel = newCodel(); } }
+    else { pk = queues.shared.pkts; queues.shared.pkts = []; queues.shared.codel = newCodel(); }
+    pk.sort((a, b) => a.enq - b.enq);
+    for (const p of pk) (aqm === 'fq' ? queues.per[qIndex(p.f)] : queues.shared).pkts.push(p);
+  });
+  nSeg.addEventListener('change', () => { nFlows = +radioValue(nSeg); });
+  rateIn.addEventListener('input', () => { mbps = rateOf(+rateIn.value); updateText(); });
+  bufIn.addEventListener('input', () => { bufPkts = bufOf(+bufIn.value); updateText(); });
+
+  const ex = register($('#bloat'), {
+    resize() { R = fit(cv, window.innerWidth <= 640 ? 1.0 : 0.62, 360, 560); draw(); },
+    tick(dt) {
+      const n = Math.round(dt * 1000);
+      for (let i = 0; i < n; i++) stepMs();
+      roTimer += dt;
+      if (roTimer > 0.25) { roTimer = 0; updateReadouts(); }
+      draw();
+    },
+  });
+  reset(); updateText();
+  // warm up a few seconds so the charts have history on first view
+  for (let i = 0; i < 6000; i++) stepMs();
+  ex.resize(); updateReadouts();
+  io.observe(ex.el);
+})();
+</script>
+</body>
+</html>

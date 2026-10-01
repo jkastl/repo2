@@ -44,6 +44,30 @@
   .tag .code { margin-top: 6px; font-size: 10.5px; overflow-wrap: anywhere; color: #222; text-align: left; letter-spacing: .02em; }
   .tag .foot { margin-top: 6px; color: #888; font-size: 9.5px; }
   #sheet { display: none; }
+  .inrow.col { flex-direction: column; align-items: stretch; gap: 6px; }
+  .inrow textarea { font: inherit; font-size: 13px; line-height: 1.5; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 6px; padding: 8px 10px; resize: vertical; min-height: 92px; text-transform: uppercase; }
+  .inrow textarea::placeholder { text-transform: none; color: #4d5b6c; }
+  .inrow textarea:focus { outline: none; border-color: var(--sig); }
+  .cam { position: relative; margin: 0 14px 12px; border: 1px solid var(--bezel-edge); border-radius: 8px; overflow: hidden; background: #000; }
+  .cam video { width: 100%; max-height: 360px; display: block; object-fit: cover; }
+  .cam-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 12px; background: #0b0f14; }
+  .cam-bar button { font: inherit; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+  .rlist { padding: 0 14px 10px; font-family: var(--mono); font-size: 12.5px; }
+  .rlist .it { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--bezel-edge); }
+  .rlist .it:first-child { border-top: 0; }
+  .rlist .mk { width: 16px; flex: none; text-align: center; }
+  .rlist .ok .mk { color: var(--sig); } .rlist .note .mk { color: var(--caution); } .rlist .err .mk { color: var(--fault); }
+  .rlist .it span.d { color: #6d7d90; }
+  .cells { display: flex; flex-wrap: wrap; gap: 3px; padding: 12px 14px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); }
+  .cells:empty { display: none; }
+  .cells i { font-style: normal; width: 18px; height: 22px; display: grid; place-items: center; border-radius: 3px; font-size: 12px; background: #151c25; color: #4d5b6c; }
+  .cells i.k { background: #123024; color: var(--sig); animation: pop .35s both; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .cells i.k { animation: none; } }
+  .rout { padding: 12px 14px 16px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); }
+  .rout .k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #6d7d90; }
+  .rout .secret { margin-top: 6px; font-size: 16px; color: var(--scr-bright); overflow-wrap: anywhere; white-space: pre-wrap; }
+  .rout .secret.hidden { filter: blur(7px); user-select: none; }
   @media print {
     @page { margin: 12mm; }
     body { background: #fff !important; }
@@ -138,6 +162,41 @@
 
 <section>
   <div class="wrap">
+    <h2>Recover</h2>
+    <div class="prose"><p>Type or paste tag codes, one per line, or scan the QR codes. The page checks each tag's
+    checksum, notices tags from a different split, and rebuilds the secret once it has enough. The camera picture
+    is read by your browser's own barcode detector, on this device.</p></div>
+    <div class="panel" id="rec">
+      <div class="inrow col"><label for="r-in">tag codes</label>
+        <textarea id="r-in" rows="4" placeholder="one code per line, e.g. 20TG-31W3-J4E7-…" autocomplete="off" autocapitalize="characters" spellcheck="false"></textarea></div>
+      <div class="ctl">
+        <button id="r-scan">scan with camera</button>
+        <button id="r-demo">try tags from above</button>
+        <button id="r-clear">clear</button>
+      </div>
+      <div class="cam" id="r-cam" hidden>
+        <video id="r-video" playsinline muted></video>
+        <div class="cam-bar"><span id="r-cam-msg">point the camera at a tag</span><button id="r-stop">stop</button></div>
+      </div>
+      <div class="sinfo" id="r-scanmsg" hidden></div>
+      <div class="rlist" id="r-list"></div>
+      <div class="ros">
+        <div class="ro"><div class="k">tags</div><div class="v" id="r-have">—</div></div>
+        <div class="ro"><div class="k">possible secrets</div><div class="v" id="r-poss">—</div></div>
+        <div class="ro wide"><div class="k">status</div><div class="v" id="r-status">waiting for tags</div></div>
+      </div>
+      <div class="cells" id="r-cells" aria-live="polite"></div>
+      <div class="rout" id="r-out" hidden>
+        <div class="k">the secret</div>
+        <div class="secret" id="r-secret"></div>
+        <div class="ctl" style="padding:8px 0 0"><button id="r-copy">copy</button><button id="r-hide">hide</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>Two modes, one polynomial idea.</strong> Any <em>k</em> points determine a
@@ -169,7 +228,7 @@
         <ul><li>Round-trip tests for every k-subset of n ≤ 8. In secret mode, check that the k − 1 share distribution doesn't depend on the secret.</li></ul></li>
       <li class="done"><b>Visual explainer.</b> An interactive plot over the real numbers (for intuition): drag points, watch the unique curve through k of them, and see that k − 1 points fit infinitely many curves through every possible secret.</li>
       <li class="done"><b>Split and print.</b> Text in, n/k chooser, tags out: QR (reuse the encoder, generalized beyond version 3), a base32 text form with a checksum, and a print stylesheet that lays tags out for cutting.</li>
-      <li><b>Recover.</b> Paste or type tag codes, with duplicate and wrong-set detection (tags carry a short set ID). Then camera scanning via <code>BarcodeDetector</code> where the browser supports it, and typed codes elsewhere.</li>
+      <li class="done"><b>Recover.</b> Paste or type tag codes, with duplicate and wrong-set detection (tags carry a short set ID). Then camera scanning via <code>BarcodeDetector</code> where the browser supports it, and typed codes elsewhere.</li>
       <li><b>Write-up.</b> Backup vs secret mode tradeoffs, why this is the basis for key backup in hardware wallets (SLIP-39) and for erasure coding in storage systems, and what it doesn't protect against (a thief who finds k tags).</li>
     </ol>
   </div>
@@ -766,6 +825,185 @@ const TAG = (() => {
   $id('s-again').onclick = () => { set = null; render(); };
   $id('s-print').onclick = () => window.print();
   render();
+})();
+</script>
+<script>
+/* ================================================================
+   Recover: parse codes, group by set, rebuild once there are k
+   ================================================================ */
+(() => {
+  const $id = id => document.getElementById(id);
+  const ta = $id('r-in');
+  const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const hex = b => [...b].map(v => v.toString(16).padStart(2, '0')).join('');
+  let hidden = false, lastKey = '';
+
+  /* every line is one code; a line that fails as a whole is retried as space-separated codes */
+  function parse(text) {
+    const items = [];
+    text.split(/[\n,;]+/).forEach((line, i) => {
+      const t = line.trim(); if (!t) return;
+      let u = TAG.unpack(t);
+      if (u.ok) return items.push({ line: i + 1, tag: u.tag });
+      const parts = t.split(/\s+/).map(TAG.unpack);
+      if (parts.length > 1 && parts.every(p => p.ok)) return parts.forEach(p => items.push({ line: i + 1, tag: p.tag }));
+      items.push({ line: i + 1, err: u.why });
+    });
+    return items;
+  }
+  /* the polynomial for every byte group, from k tags; then each tag can be checked against it */
+  function polys(tags, k) {
+    const xs = tags.map(t => t.x);
+    return Array.from({ length: tags[0].data.length }, (_, g) => TP.interpolate(xs, tags.map(t => t.data[g])));
+  }
+  const fits = (P, t) => P.every((c, g) => TP.evalPoly(c, t.x) === t.data[g]);
+  function* subsets(arr, k, start = 0, acc = []) {
+    if (acc.length === k) { yield acc; return; }
+    for (let i = start; i < arr.length; i++) yield* subsets(arr, k, i + 1, acc.concat(arr[i]));
+  }
+
+  function update() {
+    const items = parse(ta.value), list = [];
+    // group good tags by set; the set with the most tags is the one being rebuilt
+    const sets = new Map();
+    for (const it of items) if (it.tag) { const id = TAG.setId(it.tag.set); if (!sets.has(id)) sets.set(id, []); sets.get(id).push(it); }
+    let active = null;
+    for (const [id, arr] of sets) if (!active || arr.length > sets.get(active).length) active = id;
+    const use = [], byX = new Map();
+    for (const it of items) {
+      if (it.err) { list.push(['err', `line ${it.line}`, it.err]); continue; }
+      const t = it.tag, id = TAG.setId(t.set);
+      if (id !== active) { list.push(['note', `line ${it.line}`, `tag ${t.x} of set ${id}: a different split, not used`]); continue; }
+      const f = use[0] && use[0].tag;
+      if (f && (t.k !== f.k || t.n !== f.n || t.mode !== f.mode || t.len !== f.len)) { list.push(['err', `line ${it.line}`, `tag ${t.x}'s header disagrees with the rest of set ${id}`]); continue; }
+      if (byX.has(t.x)) {
+        const same = hex(byX.get(t.x).tag.data) === hex(t.data);
+        list.push([same ? 'note' : 'err', `line ${it.line}`, same ? `tag ${t.x} again, ignored` : `a second, different tag ${t.x}: one of the two is forged`]);
+        continue;
+      }
+      byX.set(t.x, it); use.push(it);
+      list.push(['ok', `line ${it.line}`, `tag ${t.x} of ${t.n} · any ${t.k} · ${t.mode} · set ${id}`, t.x]);
+    }
+    $id('r-list').innerHTML = list.map(([c, a, b, x]) => `<div class="it ${c}"${x ? ` data-x="${x}"` : ''}><span class="mk">${c === 'ok' ? '✓' : c === 'note' ? '•' : '✗'}</span><span><span class="d">${esc(a)}</span> ${esc(b)}</span></div>`).join('');
+
+    const have = $id('r-have'), poss = $id('r-poss'), status = $id('r-status'), cells = $id('r-cells'), out = $id('r-out');
+    if (!use.length) {
+      have.textContent = '—'; poss.textContent = '—'; status.textContent = items.length ? 'no usable tags yet' : 'waiting for tags'; status.className = 'v';
+      cells.innerHTML = ''; out.hidden = true; lastKey = ''; return;
+    }
+    const T = use.map(it => it.tag), { k, n, mode, len } = T[0];
+    have.textContent = `${T.length} of ${k} needed`; have.className = 'v ' + (T.length >= k ? 'ok' : 'fog');
+    if (T.length < k) {
+      // nothing is known yet: secret mode leaves every byte open; backup mode leaves (k − have) bytes per group
+      const bits = mode === 'secret' ? 8 * len : Math.min(8 * len, 8 * Math.ceil(len / k) * (k - T.length));
+      poss.innerHTML = `2<sup>${bits}</sup>`; poss.className = 'v fog';
+      status.textContent = mode === 'secret'
+        ? `${k - T.length} more tag${k - T.length > 1 ? 's' : ''} to go. Until then every ${len}-byte secret is exactly as likely as any other.`
+        : `${k - T.length} more tag${k - T.length > 1 ? 's' : ''} to go. Backup tags leak, so some of the text is already narrowed down.`;
+      status.className = 'v fog';
+      cells.innerHTML = '<i>?</i>'.repeat(len); out.hidden = true; lastKey = ''; return;
+    }
+    // k or more: take the answer most k-subsets agree on, then check every tag against it
+    const votes = new Map(); let tried = 0;
+    for (const sub of subsets(T, k)) {
+      const b = TP.combine(sub.map(t => ({ x: t.x, data: t.data })), k, mode, len), key = hex(b);
+      const v = votes.get(key) || { n: 0, sub, b }; v.n++; votes.set(key, v);
+      if (++tried >= 3000) break;
+    }
+    const ranked = [...votes.values()].sort((a, b) => b.n - a.n);
+    const best = ranked[0], tie = ranked[1] && ranked[1].n === best.n;
+    const P = polys(best.sub, k), bad = T.filter(t => !fits(P, t)).map(t => t.x);
+    if (T.length > k && (tie || bad.length)) {
+      if (tie) {
+        status.textContent = `the tags disagree, and ${T.length} isn't enough to outvote a forgery. Add another tag.`; status.className = 'v bad';
+        poss.textContent = '?'; poss.className = 'v bad'; cells.innerHTML = '<i>?</i>'.repeat(len); out.hidden = true; lastKey = ''; return;
+      }
+      for (const x of bad) {
+        const row = $id('r-list').querySelector(`[data-x="${x}"]`);
+        row.className = 'it err'; row.querySelector('.mk').textContent = '✗';
+        row.lastElementChild.insertAdjacentHTML('beforeend', ` <b style="color:var(--fault);font-weight:500">doesn't fit the others: damaged or forged, outvoted</b>`);
+      }
+    }
+    poss.textContent = '1'; poss.className = 'v ok';
+    status.textContent = T.length === k ? `rebuilt from exactly ${k} tags. With no spare, a forged tag would go unnoticed.` : bad.length ? `rebuilt; the other tags outvoted tag ${bad.join(', ')}` : `rebuilt, and all ${T.length} tags agree`;
+    status.className = 'v ' + (bad.length ? 'fog' : 'ok');
+    let text;
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(best.b); } catch (e) { text = null; }
+    const key = hex(best.b);
+    if (key !== lastKey) {
+      // flip the cells one by one
+      const chars = text !== null ? [...text] : [...best.b].map(v => v.toString(16).padStart(2, '0'));
+      cells.innerHTML = chars.map((c, i) => `<i class="k" style="animation-delay:${Math.min(i * 25, 900)}ms">${esc(c === ' ' ? '·' : c)}</i>`).join('');
+      lastKey = key;
+    }
+    $id('r-secret').textContent = text !== null ? text : 'not text; bytes in hex: ' + key;
+    $id('r-secret').classList.toggle('hidden', hidden);
+    out.hidden = false;
+  }
+
+  ta.addEventListener('input', update);
+  $id('r-clear').onclick = () => { ta.value = ''; update(); };
+  $id('r-hide').onclick = () => { hidden = !hidden; $id('r-hide').textContent = hidden ? 'show' : 'hide'; $id('r-cells').style.filter = hidden ? 'blur(6px)' : ''; update(); };
+  $id('r-copy').onclick = async () => {
+    try { await navigator.clipboard.writeText($id('r-secret').textContent); $id('r-copy').textContent = 'copied'; }
+    catch (e) { $id('r-copy').textContent = 'copy failed'; }
+    setTimeout(() => { $id('r-copy').textContent = 'copy'; }, 1500);
+  };
+  $id('r-demo').onclick = () => {
+    // a spread of k tags from the split panel, e.g. 1, 3, 5 of 5
+    const codes = [...document.querySelectorAll('#s-tags .code')].map(e => e.textContent);
+    if (!codes.length) return;
+    const k = TAG.unpack(codes[0]).tag.k, step = (codes.length - 1) / Math.max(k - 1, 1);
+    const pick = [...new Set(Array.from({ length: k }, (_, i) => Math.round(i * step)))];
+    ta.value = pick.map(i => codes[i]).join('\n'); update();
+    $id('rec').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+
+  /* camera scanning, where the browser has a QR detector */
+  let stream = null, timer = 0;
+  const scanMsg = $id('r-scanmsg');
+  function stopCam() {
+    clearTimeout(timer);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null; $id('r-cam').hidden = true; $id('r-scan').disabled = false;
+  }
+  $id('r-scan').onclick = async () => {
+    scanMsg.hidden = true;
+    let ok = 'BarcodeDetector' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    if (ok) { try { ok = (await BarcodeDetector.getSupportedFormats()).includes('qr_code'); } catch (e) { ok = false; } }
+    if (!ok) {
+      scanMsg.hidden = false;
+      scanMsg.innerHTML = `<span class="warn">This browser can't read QR codes by itself.</span> Your phone's camera app can: point it at a tag, copy the text it shows, and paste it above. Or type the code.`;
+      return;
+    }
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+    catch (e) { scanMsg.hidden = false; scanMsg.innerHTML = `<span class="bad">No camera: ${esc(e.message || e.name)}.</span> You can still type or paste the codes.`; return; }
+    const video = $id('r-video'), det = new BarcodeDetector({ formats: ['qr_code'] }), msg = $id('r-cam-msg');
+    video.srcObject = stream; await video.play().catch(() => {});
+    $id('r-cam').hidden = false; $id('r-scan').disabled = true;
+    const seen = new Set(ta.value.split(/\n/).map(l => TAG.normalize(l)));
+    const loop = async () => {
+      if (!stream) return;
+      try {
+        for (const code of await det.detect(video)) {
+          const v = code.rawValue, norm = TAG.normalize(v);
+          if (seen.has(norm)) continue;
+          const u = TAG.unpack(v);
+          if (!u.ok) { msg.textContent = 'that QR code isn\'t a tag'; continue; }
+          seen.add(norm);
+          ta.value = (ta.value.trim() ? ta.value.trim() + '\n' : '') + TAG.pretty(norm);
+          msg.textContent = `got tag ${u.tag.x} of ${u.tag.n}`;
+          update();
+          if (navigator.vibrate) navigator.vibrate(40);
+        }
+      } catch (e) { /* frame not ready yet */ }
+      timer = setTimeout(loop, 180);
+    };
+    loop();
+  };
+  $id('r-stop').onclick = stopCam;
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopCam(); });
+  update();
 })();
 </script>
 </body>

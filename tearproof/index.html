@@ -44,6 +44,12 @@
   .tag .code { margin-top: 6px; font-size: 10.5px; overflow-wrap: anywhere; color: #222; text-align: left; letter-spacing: .02em; }
   .tag .foot { margin-top: 6px; color: #888; font-size: 9.5px; }
   #sheet { display: none; }
+  table.cmp { border-collapse: collapse; margin-top: 16px; max-width: 760px; width: 100%; font-size: 15px; color: var(--ink-dim); }
+  table.cmp th, table.cmp td { text-align: left; vertical-align: top; padding: 9px 12px 9px 0; border-top: 1px solid var(--rule); }
+  table.cmp thead th { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); border-top: 0; }
+  table.cmp thead th span { display: block; text-transform: none; letter-spacing: 0; color: var(--ink-faint); font-size: 11.5px; }
+  table.cmp tbody th { font-family: var(--mono); font-weight: 400; font-size: 12px; color: var(--ink-faint); width: 22%; }
+  @media (max-width: 520px) { table.cmp { font-size: 14px; } table.cmp tbody th { width: 26%; } }
   .inrow.col { flex-direction: column; align-items: stretch; gap: 6px; }
   .inrow textarea { font: inherit; font-size: 13px; line-height: 1.5; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 6px; padding: 8px 10px; resize: vertical; min-height: 92px; text-transform: uppercase; }
   .inrow textarea::placeholder { text-transform: none; color: #4d5b6c; }
@@ -84,7 +90,7 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 10 <span class="status building">building</span></div>
+    <div class="eyebrow">Lab · 10 <span class="status live">live</span></div>
     <h1>Tear-Proof Secrets</h1>
     <div class="lede">
       <p>Type the Wi-Fi password, pick "5 tags, any 3", and print five small QR tags. Stick them on
@@ -192,30 +198,88 @@
         <div class="ctl" style="padding:8px 0 0"><button id="r-copy">copy</button><button id="r-hide">hide</button></div>
       </div>
     </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>In the explainer, tear tags off until you have one fewer than you need. The fan of curves sweeps the whole
+        axis. Put one back and it collapses to a single curve.</li>
+        <li>Still in the explainer, keep exactly <em>k</em> tags and drag one. The curve follows the forgery and the
+        secret moves with it. Now restore all five tags and forge one: the other four outvote it.</li>
+        <li>Split something, press <b>try tags from above</b>, then delete one line. "Possible secrets" jumps back
+        to 2<sup>8 × length</sup>: being one tag short is as good as having none.</li>
+        <li>Switch to <b>backup</b> mode with a long sentence and any 4 of 6. Each tag's share shrinks to a quarter
+        of the sentence (the 9-byte label and checksum stay). Recover with three of them, and "possible secrets" is far smaller than in secret mode, because
+        backup tags leak.</li>
+        <li>Mistype a character, paste a tag twice, or mix in a tag from a re-split. Each one gets caught and
+        named.</li>
+        <li>Print the tags, cut them apart, and scan them with your phone's camera app. The QR codes hold the same
+        text as the typed codes.</li>
+      </ol>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>How it will work</h2>
+    <h2>How it works</h2>
     <div class="prose">
-      <p><strong>Two modes, one polynomial idea.</strong> Any <em>k</em> points determine a
-      polynomial of degree <em>k − 1</em>. Hand out <em>n</em> points on it, and any <em>k</em> of
-      them rebuild it.</p>
+      <p><strong>One polynomial idea.</strong> Any <em>k</em> points pin down exactly one polynomial of
+      degree <em>k</em> − 1: two points fix a line, three a parabola. Put the data into a polynomial, hand out
+      <em>n</em> points on it, and any <em>k</em> of them rebuild it. The page does this once per byte, in GF(256),
+      the same 256-element number system the QR exhibit's error correction uses. There, addition is XOR and every
+      byte value has a partner to divide by, so the curve-fitting from school algebra works exactly, with no
+      rounding.</p>
+      <p><strong>Two ways to use it.</strong> The difference is <em>where</em> the data goes in the polynomial.</p>
+    </div>
+    <table class="cmp">
+      <thead><tr><th></th><th>secret mode <span>Shamir, 1979</span></th><th>backup mode <span>Reed–Solomon erasure code</span></th></tr></thead>
+      <tbody>
+        <tr><th>the data is</th><td>only the constant term, p(0); the other coefficients are fresh random bytes</td><td>all of the coefficients, <i>k</i> bytes per polynomial</td></tr>
+        <tr><th>each tag holds</th><td>as many bytes as the secret</td><td>about 1/<i>k</i> of the data</td></tr>
+        <tr><th>all <i>n</i> tags together</th><td><i>n</i>× the secret</td><td><i>n</i>/<i>k</i>× the data</td></tr>
+        <tr><th><i>k</i> − 1 tags reveal</th><td>nothing: every secret of that length stays exactly as likely</td><td>a lot: each tag removes 8 bits of uncertainty from every <i>k</i>-byte chunk</td></tr>
+        <tr><th>use it for</th><td>passwords, recovery codes, keys</td><td>long text you're afraid of <em>losing</em>, not of someone reading</td></tr>
+      </tbody>
+    </table>
+    <div class="prose" style="margin-top:18px">
+      <p>Why does secret mode leak nothing? Fix any <em>k</em> − 1 tags. For each of the 256 possible values of
+      a secret byte, there is exactly one polynomial through those tags and that value, and the random
+      coefficients made each of those polynomials equally likely. So the tags fit every secret equally well. That's
+      the fan of curves in the explainer above, and the page's tests check it exhaustively: for <em>k</em> = 2, 3
+      and 4, every combination of <em>k</em> − 1 share bytes turns up exactly once for every secret.</p>
+
+      <h3>What it doesn't protect against</h3>
       <ul>
-        <li><strong>Backup mode (Reed–Solomon erasure code).</strong> The data <em>are</em> the
-        polynomial's coefficients. It's compact, since each tag holds about 1/k of the data, but each
-        tag reveals part of the secret.</li>
-        <li><strong>Secret mode (Shamir, 1979).</strong> The secret is only the constant term, and the
-        other coefficients are random. With fewer than <em>k</em> tags, every possible secret is
-        equally likely. Each tag is as big as the secret.</li>
+        <li><strong>Someone who finds <em>k</em> tags.</strong> That's the deal: <em>k</em> tags <em>are</em> the
+        secret. Put them where no single place, person, or burglary gets <em>k</em> of them. Three tags in the same
+        kitchen drawer are a password on a sticky note with extra steps.</li>
+        <li><strong>Learning the length.</strong> Every tag records how many bytes the secret is, so one tag says
+        "this password is 28 bytes" and nothing else. Most Shamir tools leak the same thing. If the length matters,
+        pad the secret yourself before splitting.</li>
+        <li><strong>A forged tag with no spare.</strong> Shamir shares carry no signature. With exactly <em>k</em>
+        tags, a forged one produces a wrong secret, and nothing can tell. With one spare the page notices the tags
+        disagree, and with two or more spares it outvotes the forgery and names it. SLIP-39, below, adds a digest
+        of the secret so a wrong combination is caught even without a spare.</li>
+        <li><strong>The moment of splitting.</strong> You're trusting this page's code, your browser, and your
+        printer queue while the secret is on screen. The page makes no network requests, so you can save it and
+        use it offline. The math above is short enough to check.</li>
+        <li><strong>Paper.</strong> Thermal receipts fade and inkjet runs when it gets wet. Use a laser printer, and
+        since the QR codes are level Q, they still scan with about a quarter of each code scuffed or torn away.</li>
       </ul>
-      <p><strong>Split:</strong> enter text, choose <em>n</em> and <em>k</em>, and get <em>n</em>
-      printable tags. Each tag is a QR code plus a short human-typeable code and a label like
-      "tag 2 of 5 · any 3".</p>
-      <p><strong>Recover:</strong> scan tags with the camera (or type them in), and the page
-      shows the polynomial being pinned down one point at a time, then reveals the secret once
-      it has <em>k</em>.</p>
+
+      <h3>Where this lives</h3>
+      <p><strong>Hardware wallets.</strong> SLIP-39, from SatoshiLabs (the makers of Trezor), splits a wallet's
+      master secret into word lists, one per share, using exactly this math over GF(256). It adds two levels,
+      such as "any 2 of these 3 groups, where the family group needs 2 of 3 and the lawyer group needs 1", plus a
+      checksum on every share and a digest of the secret.</p>
+      <p><strong>Server secrets.</strong> HashiCorp Vault, a widely used secrets manager, starts out "sealed".
+      Its master key is split with Shamir among several operators, by default into 5 shares with a threshold of 3,
+      the same as this page's default. No single person can unlock it, and losing two people doesn't lock everyone
+      out.</p>
+      <p><strong>Storage.</strong> Backup mode is how disks survive losing disks. RAID 6 stores two extra parity
+      blocks per stripe, so any two drives can fail. Backblaze's storage vaults spread every file across 20
+      machines as 17 data shards plus 3 parity shards, using Reed–Solomon, so any 3 can be lost. It costs
+      20/17 ≈ 1.18× the space, instead of the 3× of keeping three full copies.</p>
     </div>
   </div>
 </section>
@@ -229,7 +293,7 @@
       <li class="done"><b>Visual explainer.</b> An interactive plot over the real numbers (for intuition): drag points, watch the unique curve through k of them, and see that k − 1 points fit infinitely many curves through every possible secret.</li>
       <li class="done"><b>Split and print.</b> Text in, n/k chooser, tags out: QR (reuse the encoder, generalized beyond version 3), a base32 text form with a checksum, and a print stylesheet that lays tags out for cutting.</li>
       <li class="done"><b>Recover.</b> Paste or type tag codes, with duplicate and wrong-set detection (tags carry a short set ID). Then camera scanning via <code>BarcodeDetector</code> where the browser supports it, and typed codes elsewhere.</li>
-      <li><b>Write-up.</b> Backup vs secret mode tradeoffs, why this is the basis for key backup in hardware wallets (SLIP-39) and for erasure coding in storage systems, and what it doesn't protect against (a thief who finds k tags).</li>
+      <li class="done"><b>Write-up.</b> Backup vs secret mode tradeoffs, why this is the basis for key backup in hardware wallets (SLIP-39) and for erasure coding in storage systems, and what it doesn't protect against (a thief who finds k tags).</li>
     </ol>
   </div>
 </section>
@@ -246,12 +310,20 @@
       files. It's also why a Reed–Solomon decoder repairs twice as much damage when it's
       <em>told</em> which bytes are missing (erasures) as when it has to find them: a known-missing
       byte costs half as much parity as an unknown wrong one.</p>
+      <p>Why bother with GF(256) instead of ordinary numbers? Over the integers, Shamir leaks. If the secret is a
+      byte and a share is 1,000 at <i>x</i> = 1 with small random coefficients, that rules out some secrets, because
+      ordinary numbers have sizes and limits. In a finite field there is no "bigger" or "smaller": adding a random
+      byte scrambles a value completely, and division always works. That's what makes "every secret equally likely"
+      exactly true, not just roughly.</p>
     </div>
     <h3>Reading</h3>
     <ul class="refs">
       <li>A. Shamir, “How to share a secret,” <i>Communications of the ACM</i> 22(11), 1979.</li>
       <li>SatoshiLabs, SLIP-0039: Shamir's Secret-Sharing for Mnemonic Codes.</li>
       <li>J. S. Plank, “Erasure codes for storage systems: a brief primer,” <i>;login:</i>, 2013.</li>
+      <li>HashiCorp, “Seal/Unseal,” Vault documentation.</li>
+      <li>B. Beach, “Backblaze open-sources Reed–Solomon erasure coding source code,” Backblaze blog, 2015.</li>
+      <li>ISO/IEC 18004:2015, <i>QR Code bar code symbology specification</i> (the block tables behind the tags' QR codes).</li>
     </ul>
   </div>
 </section>

@@ -56,7 +56,9 @@ Fingerprint (09) notes: the math lives in `const FP` (sim phone, still detector,
 fingerprint, defenses, walk/step counter), separate from the page code so tests can call it. The grid search follows
 SensorID §III-D: consecutive differences (offsets and drift cancel), a first step guess per axis, then a 3×3 gain matrix
 per sensor recovered by rounding G⁻¹·ΔO to whole counts in batches that only grow while the estimate is sharp enough.
-The ID hashes the diagonal steps only; the cross-axis terms are shown ("mixes in") but not hashed. A simulator feeds the same `ingest()`
+The ID hashes the diagonal steps only; the cross-axis terms are shown ("mixes in") but not hashed. The capture is a guided run (`beginRun`/`updateRun`/`endRun`): one instruction at a time, also in a bar fixed
+to the bottom of the screen; it stops itself after all six poses, after two minutes, or when the page is hidden, then
+analyses once and shows a plain-language result. A simulator feeds the same `ingest()`
 path as real `devicemotion` events. Tests build their own synthetic phones in `tests/fingerprint-lib.mjs`
 (per-axis lattice `step·A + offset` with known step, offset, scale error, bias and noise; optionally float32,
 cross-axis mixing and a drifting offset).

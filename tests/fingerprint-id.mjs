@@ -68,16 +68,16 @@ check(Math.round(F[0].bits) === Math.round(6 * perAxis) && Math.round(6 * perAxi
 }
 
 // the panel: simulate, keep, same again, another phone
-await p.evaluate(() => simulate(4242, true)); await sleep(900);
+await p.evaluate(() => simulate(4242, true)); await sleep(1700);
 const hex1 = await p.textContent('#fp-hex');
 check(/^[0-9a-f]{4}( [0-9a-f]{4}){3}$/.test(hex1), `panel shows a hex ID (${hex1})`);
 check(await p.textContent('#fp-bits') === '≈ 60', 'panel: ≈ 60 bits with six axes');
 await p.click('#fp-keep');
-await p.evaluate(() => simulate(4242, true)); await sleep(900);
+await p.evaluate(() => simulate(4242, true)); await sleep(1700);
 const v1 = await p.textContent('#fp-cmp');
 check(/Same phone/.test(v1) && await p.textContent('#fp-hex') === hex1, 'same simulated phone again → "Same phone", same hex');
 await (await p.$('#fp')).screenshot({ path: `${OUT}/fp-id-same.png` });
-await p.evaluate(() => simulate(777, true)); await sleep(900);
+await p.evaluate(() => simulate(777, true)); await sleep(1700);
 check(/Different phone/.test(await p.textContent('#fp-cmp')), 'another phone → "Different phone"');
 await (await p.$('#fp')).screenshot({ path: `${OUT}/fp-id-diff.png` });
 // the button path (animated simulator)
@@ -85,10 +85,10 @@ await p.click('#fp-same'); await sleep(2800);
 check(/Different phone/.test(await p.textContent('#fp-cmp')) && await p.evaluate(() => CAP.simSeed) === 777, '"Same simulated phone again" reruns phone 777');
 // a real-sensor capture uses the same code: dispatched events of the kept phone's twin
 await p.click('#cap-start');
-const ph = makeSynth(55); await dispatch(p, synthScript(ph, 1, 90)); await sleep(900);
+const ph = makeSynth(55); await dispatch(p, synthScript(ph, 1, 90)); await sleep(1700);
 await p.click('#fp-keep');
-await p.click('#cap-stop'); await p.click('#cap-start');
-await dispatch(p, synthScript(ph, 2, 90)); await sleep(900);
+await p.click('#cap-start');
+await dispatch(p, synthScript(ph, 2, 90)); await sleep(1700);
 check(/Same phone/.test(await p.textContent('#fp-cmp')), 'dispatched events, twice from one synthetic phone → "Same phone"');
 check(await p.evaluate(() => !Object.keys(localStorage).length && !Object.keys(sessionStorage).length && !document.cookie), 'nothing stored (no localStorage, sessionStorage or cookies)');
 

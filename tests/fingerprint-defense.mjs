@@ -30,7 +30,7 @@ check(W.halfStep / W.swing < 1e-3, `half a step ÷ walking swing (${W.swing.toFi
 check(W.nudge.round <= 0.05 + 1e-9, `rounding nudges ≤ 0.05 m/s² (${W.nudge.round.toFixed(4)})`);
 
 // the switch, on a simulated capture
-await p.evaluate(() => simulate(9001, true)); await sleep(900);
+await p.evaluate(() => simulate(9001, true)); await sleep(1700);
 const hex0 = await p.textContent('#fp-hex');
 const state = () => p.evaluate(() => ({ grid: $('#def-grid').textContent, fp: $('#def-fp').textContent, steps: $('#def-steps').textContent,
   hex: $('#fp-hex').textContent, gmsg: $('#grid-msg').textContent, tab: [...document.querySelectorAll('#grid-tab tr')].slice(1).map(r => r.children[1].textContent) }));
@@ -52,7 +52,7 @@ check(S.hex === hex0, `back to as delivered: same hex again (${S.hex})`);
 
 // a phone that already has the noise defense: no grid "as delivered"
 await p.click('#cap-start');
-await dispatch(p, synthScript(makeSynth(12, { noiseDefense: true }), 2, 90)); await sleep(900); S = await state();
+await dispatch(p, synthScript(makeSynth(12, { noiseDefense: true }), 2, 90)); await sleep(1700); S = await state();
 check(S.grid === '0 of 6 axes' && S.fp === 'none', `phone with built-in noise, as delivered: ${S.grid}, fingerprint ${S.fp}`);
 
 for (const [Wd, scheme] of [[1200, 'light'], [1200, 'dark'], [390, 'dark'], [390, 'light']]) {

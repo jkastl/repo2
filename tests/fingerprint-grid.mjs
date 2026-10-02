@@ -95,7 +95,7 @@ await run('six faces, drift + mixing + float32', { drift: 0.01, mix: 0.01, f32: 
   check(R.slice(3).every(g => !g.ok), 'iPhone-like gyroscope: no grid');
   check(!F.ready && F.axes.length === 0, 'iPhone-like capture: no fingerprint');
   await p.evaluate(() => { CAP.samples = []; });
-  await p.click('#cap-start'); await dispatch(p, S); await sleep(900);
+  await p.click('#cap-start'); await dispatch(p, S); await sleep(1700);
   check(/nothing to fingerprint/.test(await p.textContent('#fp-sub')) && /format/.test(await p.textContent('#grid-tab')), 'iPhone-like capture in the panel: "format" rows, and the ID panel says there is nothing to fingerprint');
   check(await p.evaluate(() => [FP.formatGrid(9.80665 / 4096 * 1.003, 'acc'), FP.formatGrid(0.0610352, 'gyro'), FP.formatGrid(1 / 16.4, 'gyro')].every(x => x === null)),
     'a calibrated-looking step is never called a format');
@@ -127,7 +127,7 @@ check(t < 1000, `3000 samples analysed in ${t.toFixed(0)} ms`);
 // the panel
 await p.click('#cap-start');
 const ph = makeSynth(31, { mix: 0.008 });
-await dispatch(p, synthScript(ph, 3, 90)); await sleep(900);
+await dispatch(p, synthScript(ph, 3, 90)); await sleep(1700);
 const T = await p.$$eval('#grid-tab tr', rs => rs.slice(1).map(r => [...r.children].map(c => c.textContent)));
 check(T.every(r => r[1] === 'grid'), 'table: grid on all six axes');
 check(T.every((r, i) => Math.abs(parseFloat(r[2]) / ph.axes[i].step - 1) < 1e-6), 'table: steps match the synthetic phone to 7 digits');
@@ -144,8 +144,8 @@ for (const [W, scheme] of [[1200, 'light'], [1200, 'dark'], [390, 'dark'], [390,
   const sw = await p.evaluate(() => document.documentElement.scrollWidth);
   check(sw === W, `${W} ${scheme}: no horizontal scroll (sw ${sw})`);
 }
-await p.click('#cap-stop'); await p.click('#cap-start');
-await dispatch(p, synthScript(makeSynth(32, { noiseDefense: true }), 3, 90)); await sleep(900);
+await p.click('#cap-start');
+await dispatch(p, synthScript(makeSynth(32, { noiseDefense: true }), 3, 90)); await sleep(1700);
 check(/no grid/.test(await p.textContent('#grid-msg')), 'noisy capture: panel says no grid');
 await (await p.$('#grid')).screenshot({ path: `${OUT}/fp-grid-noise.png` });
 check(errs.length === 0, `no page errors ${errs.join(' ')}`);

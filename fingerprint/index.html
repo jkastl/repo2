@@ -209,6 +209,45 @@
 
 <section>
   <div class="wrap">
+    <h2>The fix</h2>
+    <div class="prose">
+      <p>The GCD trick needs every gap between readings to be an <em>exact</em> whole number of steps. So
+      the cure is to break that exactness. Add a random amount of up to half a step to each count before the
+      calibration is applied, and a reading can land anywhere in its cell instead of on a grid point. The
+      gaps stop being whole multiples of anything, and the grid search comes back empty. The SensorID authors
+      proposed exactly this kind of noise, and Apple added random noise in iOS 12.2. Apple's own security
+      note says only that the issue "was addressed with improved motion sensor processing" (CVE-2019-8541).</p>
+      <p>Browsers took a blunter route. The W3C DeviceOrientation spec now requires readings to be limited to
+      0.1&nbsp;m/s² and 0.1&nbsp;°/s, and Chromium rounds them to those multiples, citing exactly this
+      attack in its source. That puts every phone on the same grid, the browser's.</p>
+      <p>Neither costs ordinary motion features much. Walking swings the accelerometer by a few m/s² each
+      step. On the simulated phone here, half a grid step is about 0.001&nbsp;m/s², under a thousandth of that,
+      and even rounding to 0.1 moves a reading by at most 0.05.
+      Switch the defenses below: the walk's step count doesn't move, but the grid and the fingerprint above do.</p>
+    </div>
+    <div class="panel" id="def">
+      <div class="ctl">
+        <span class="seg" id="def-mode"><button data-v="none" class="on">as delivered</button><button data-v="noise">+ noise (iOS 12.2)</button><button data-v="round">round to 0.1 (W3C)</button></span>
+      </div>
+      <div class="plot"><canvas id="def-cv" aria-label="A simulated 20-second walk: acceleration magnitude with each counted step marked."></canvas></div>
+      <div class="ros">
+        <div class="ro"><div class="k">grid found on</div><div class="v" id="def-grid">—</div></div>
+        <div class="ro"><div class="k">fingerprint</div><div class="v" id="def-fp">—</div></div>
+        <div class="ro"><div class="k">walk: steps</div><div class="v" id="def-steps">—</div></div>
+        <div class="ro"><div class="k">biggest nudge</div><div class="v" id="def-nudge">—</div></div>
+      </div>
+      <div class="sinfo" id="def-msg"></div>
+    </div>
+    <p class="hint">The switch changes the readings this page analyses, so the grid and fingerprint panels above
+    follow it. It can't undo anything your own browser or phone already did: if your capture shows no grid with
+    the switch on <b>as delivered</b>, a defense was already there. The walk is simulated with the same phone
+    as the capture (or a stock one), 36 steps in 20 seconds. How much noise Apple actually adds isn't public;
+    half a step is this page's choice, about the least that hides the grid.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
@@ -236,7 +275,7 @@
       <li class="done"><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
       <li class="done"><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
       <li class="done"><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
-      <li><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
+      <li class="done"><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
       <li><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
     </ol>
   </div>
@@ -442,7 +481,42 @@ const FP = (() => {
     return { rows, same: rows.length >= 3 && rows.every(r => r.ok), hexSame: A.hex === B.hex };
   }
 
-  return { G0, NOMINAL, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  /* ---- defenses, applied to one axis's readings.
+     'noise': uniform noise of up to half a grid step, as if added to the ADC counts before calibration.
+     'round': every reading rounded to a multiple of 0.1, as the W3C spec and Chromium do. */
+  function defend(vals, mode, step, seed) {
+    if (mode === 'noise') { const r = rng(seed); return vals.map(v => v + step * (r() - 0.5)); }
+    if (mode === 'round') return vals.map(v => Math.round(v / 0.1) * 0.1);
+    return vals;
+  }
+  /* ---- a 20-second walk at 1.8 steps a second (36 steps), phone held upright, 60 samples a second */
+  const WALK_HZ = 1.8, WALK_S = 20, WALK_RATE = 60;
+  function walk(ph, seed) {
+    const r = rng(seed), out = [];
+    for (let k = 0; k < WALK_S * WALK_RATE; k++) {
+      const t = k / WALK_RATE, ph0 = 2 * Math.PI * WALK_HZ * t;
+      const a = [1.1 * Math.sin(ph0 / 2) + 0.3 * gaussR(r),                       // side-to-side sway, once per stride
+                 G0 + 2.6 * Math.sin(ph0) + 0.8 * Math.sin(2 * ph0 + 0.6) + 0.3 * gaussR(r),   // bounce, once per step
+                 0.9 * Math.sin(ph0 + 1.2) + 0.3 * gaussR(r)];                    // forward surge
+      out.push(phoneSample(ph, a, [12 * Math.sin(ph0 / 2), 6 * Math.sin(ph0), 4 * Math.sin(ph0 / 2 + 1)], r));
+    }
+    return out;
+  }
+  // a plain step counter: smooth the acceleration magnitude, count rises through mean + 1 m/s²
+  function countSteps(S, rate = WALK_RATE) {
+    const m = S.map(s => Math.hypot(s[0], s[1], s[2]));
+    const w = Math.max(1, Math.round(rate * 0.08)), sm = m.map((_, i) => {
+      let a = 0, n = 0; for (let j = Math.max(0, i - w); j <= Math.min(m.length - 1, i + w); j++) { a += m[j]; n++; } return a / n; });
+    const mean = sm.reduce((a, b) => a + b, 0) / sm.length;
+    const marks = []; let armed = true, last = -1e9;
+    sm.forEach((v, i) => {
+      if (armed && v > mean + 1 && i - last > rate * 0.25) { marks.push(i); last = i; armed = false; }
+      else if (v < mean) armed = true;
+    });
+    return { marks, mag: m, smooth: sm, mean };
+  }
+
+  return { G0, NOMINAL, defend, walk, countSteps, WALK_HZ, WALK_S, WALK_RATE, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -693,10 +767,14 @@ function drawGravity() {
    step 3: the grid
    ================================================================ */
 const AXIS_NAME = ['accel x', 'accel y', 'accel z', 'gyro x', 'gyro y', 'gyro z'];
-let GRID = [], gridAxis = 0, gridAt = 0;
-function axisVals(i) { const v = []; for (const s of CAP.samples) if (s[i] != null) v.push(s[i]); return v; }
+let GRID = [], REF = [], gridAxis = 0, gridAt = 0, DEFENSE = 'none';
+function rawVals(i) { const v = []; for (const s of CAP.samples) if (s[i] != null) v.push(s[i]); return v; }
+// the step a defense's noise is sized by: the undefended grid if there is one, else a typical sensor's
+function refStep(i) { return REF[i] && REF[i].ok && !REF[i].rounded ? REF[i].step : FP.NOMINAL[i]; }
+function axisVals(i) { return FP.defend(rawVals(i), DEFENSE, refStep(i), 1000 + i); }
 function updateGrid() {
-  GRID = [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(axisVals(i)));
+  REF = [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(rawVals(i)));
+  GRID = DEFENSE === 'none' ? REF : [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(axisVals(i)));
   const rows = GRID.map((g, i) => {
     const unit = i < 3 ? 'm/s²' : '°/s';
     let st, cls;
@@ -716,6 +794,7 @@ function updateGrid() {
   const msg = [];
   if (!have) msg.push('Capture some samples first.');
   else {
+    if (DEFENSE !== 'none') msg.push(`<span class="warn">Defense on (${DEFENSE === 'noise' ? 'noise' : 'rounding to 0.1'}): see below.</span>`);
     if (found) msg.push(`<span class="ok">Grid found on ${found} of ${have} axes.</span> Those steps are this phone's calibration gains.`);
     if (rounded) msg.push(`<span class="warn">${rounded} ax${rounded > 1 ? 'es sit' : 'is sits'} on a grid of exactly 0.1 with no offset.</span> That's the browser rounding every reading, the same grid for every phone, so it identifies nothing.`);
     if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The values fall anywhere, as they would if noise were added after the counting.`);
@@ -738,9 +817,10 @@ function drawGrid() {
   }
   // top: a window around the median, wide enough for ~24 grid steps (or 24 typical gaps)
   const sorted = [...vals].sort((a, b) => a - b), med = sorted[sorted.length >> 1];
-  const s = g.ok ? g.step : (g.best || 1e-3);
+  const s = g.ok ? g.step : refStep(gridAxis);   // no grid: fold by the undefended step, to show what was lost
   let half = 12 * s;
-  if (!g.ok) {           // no grid to size the window by: use the spread of the readings near the median
+  if (!g.ok && REF[gridAxis] && REF[gridAxis].ok) half = 12 * refStep(gridAxis);   // same window as without the defense
+  else if (!g.ok) {      // no grid to size the window by: use the spread of the readings near the median
     const near = vals.filter(v => Math.abs(v - med) < 1), m = near.reduce((a, v) => a + v, 0) / near.length;
     half = Math.max(1e-3, 3 * Math.sqrt(near.reduce((a, v) => a + (v - m) ** 2, 0) / near.length));
   }
@@ -839,16 +919,72 @@ $('#fp-keep').addEventListener('click', () => {
 });
 $('#fp-same').addEventListener('click', () => simulate(CAP.simSeed));
 $('#fp-other').addEventListener('click', () => simulate());
+
+/* ================================================================
+   step 5: the defense
+   ================================================================ */
+let WALK = null, walkKey = '';
+function walkFor(mode) {
+  const ph = CAP.source === 'sim' && CAP.simPhone ? CAP.simPhone : FP.makePhone(1);
+  const raw = FP.walk(ph, 77);
+  const cols = [0, 1, 2, 3, 4, 5].map(i => FP.defend(raw.map(s => s[i]), mode, ph.axes[i].G, 500 + i));
+  const S = raw.map((_, k) => cols.map(c => c[k]));
+  let nudge = 0; for (let k = 0; k < S.length; k++) for (let i = 0; i < 3; i++) nudge = Math.max(nudge, Math.abs(S[k][i] - raw[k][i]));
+  return { S, steps: FP.countSteps(S), nudge };
+}
+function updateDefense() {
+  const key = DEFENSE + '|' + (CAP.source === 'sim' ? CAP.simSeed : 'stock');
+  if (key !== walkKey) { walkKey = key; WALK = walkFor(DEFENSE); }
+  const found = GRID.filter(g => g.ok && !g.rounded).length, have = GRID.filter(g => g.distinct).length;
+  const rounded = GRID.filter(g => g.ok && g.rounded).length;
+  $('#def-grid').textContent = have ? `${found} of ${have} axes` + (rounded ? ` (+${rounded} at 0.1)` : '') : '—';
+  $('#def-grid').className = 'v' + (!have ? '' : found ? ' bad' : ' ok');
+  $('#def-fp').textContent = !have ? '—' : FPRINT.ready ? fmtHex(FPRINT.hex).slice(0, 9) + '…' : 'none';
+  $('#def-fp').className = 'v' + (!have ? '' : FPRINT.ready ? ' bad' : ' ok');
+  $('#def-steps').textContent = `${WALK.steps.marks.length} of ${Math.round(FP.WALK_HZ * FP.WALK_S)}`;
+  $('#def-nudge').textContent = WALK.nudge ? '± ' + WALK.nudge.toPrecision(2) + ' m/s²' : '0';
+  const M = {
+    none: 'Readings exactly as delivered. If they sit on a grid, the grid identifies the phone.',
+    noise: 'Each reading moved by up to half a grid step. The gaps are no longer whole steps, so there is no grid to find.',
+    round: 'Each reading rounded to 0.1. There is still a grid, but it is the browser\'s 0.1, identical on every phone.',
+  };
+  $('#def-msg').innerHTML = M[DEFENSE] + (have ? '' : ' Capture or simulate above to see the grid and fingerprint respond.');
+  drawDefense();
+}
+function drawDefense() {
+  if (!WALK) return;
+  const { ctx, w, h } = fit($('#def-cv'), 0.3, 160, 220);
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  const { smooth, mag, marks, mean } = WALK.steps, N = mag.length, L = 34, R = w - 10, y0 = 22, y1 = h - 18;
+  const lo = mean - 5, hi = mean + 5;
+  const X = i => L + (R - L) * i / (N - 1), Y = v => y1 - (y1 - y0) * (clamp(v, lo, hi) - lo) / (hi - lo);
+  ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+  for (const v of [mean - 4, mean, mean + 4]) { ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(R, Y(v)); ctx.stroke(); }
+  ctx.strokeStyle = COL.grid2; ctx.beginPath(); mag.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))); ctx.stroke();
+  ctx.strokeStyle = COL.ir; ctx.lineWidth = 1.6; ctx.beginPath(); smooth.forEach((v, i) => i ? ctx.lineTo(X(i), Y(v)) : ctx.moveTo(X(i), Y(v))); ctx.stroke();
+  ctx.fillStyle = COL.sig; for (const i of marks) { ctx.beginPath(); ctx.arc(X(i), Y(smooth[i]) - 7, 2.6, 0, TAU); ctx.fill(); }
+  ctx.font = font(10); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+  ctx.fillText('walk: |acceleration|, m/s²', L, 14);
+  ctx.textAlign = 'right'; ctx.fillText((mean + 4).toFixed(0), L - 4, Y(mean + 4) + 3); ctx.fillText((mean - 4).toFixed(0), L - 4, Y(mean - 4) + 3);
+  ctx.fillText('● counted step', R, 14);
+  ctx.textAlign = 'left'; ctx.fillText('0 s', L, h - 5); ctx.textAlign = 'right'; ctx.fillText(FP.WALK_S + ' s', R, h - 5); ctx.textAlign = 'left';
+}
+$('#def-mode').addEventListener('click', e => {
+  const bt = e.target.closest('button'); if (!bt) return;
+  DEFENSE = bt.dataset.v;
+  for (const x of $('#def-mode').children) x.classList.toggle('on', x === bt);
+  updateGrid(); updateFingerprint(); updateDefense();
+});
 const capView = register($('#cap'), {
   tick() {
     if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); CAP.gridDirty = true; }
     const now = performance.now();
-    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); updateFingerprint(); }
+    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); updateFingerprint(); updateDefense(); }
   },
-  resize() { drawCapture(); drawGravity(); drawGrid(); drawGlyph(FPRINT.ready ? FPRINT.hex : null); },
+  resize() { drawCapture(); drawGravity(); drawGrid(); drawGlyph(FPRINT.ready ? FPRINT.hex : null); drawDefense(); },
 });
 capView.visible = true;   // the capture feeds every panel below, so it always runs
-drawCapture(); updateGravity(); updateGrid(); updateFingerprint();
+drawCapture(); updateGravity(); updateGrid(); updateFingerprint(); updateDefense();
 </script>
 </body>
 </html>

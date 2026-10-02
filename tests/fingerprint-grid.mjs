@@ -100,8 +100,17 @@ await run('six faces, drift + mixing + float32', { drift: 0.01, mix: 0.01, f32: 
   check(await p.evaluate(() => [FP.formatGrid(9.80665 / 4096 * 1.003, 'acc'), FP.formatGrid(0.0610352, 'gyro'), FP.formatGrid(1 / 16.4, 'gyro')].every(x => x === null)),
     'a calibrated-looking step is never called a format');
   // a second capture with movement came out a few parts in 10⁴ off the format step: still a format
-  const lab = await p.evaluate(q => [FP.formatGrid(q * (1 + 2e-4), 'acc'), FP.formatGrid(q * (1 - 9e-4), 'acc'), FP.formatGrid(q * (1 + 2e-3), 'acc'), FP.formatGrid(0.1 * (1 + 3e-4), 'gyro')], q);
-  check(lab[0] === '≈1/65536 g' && lab[1] === '≈1/65536 g' && lab[2] === null && lab[3] === '≈0.1', `blurred format steps: ${lab.join(', ')} (0.1% tolerance)`);
+  // (readings on whole multiples of the round step → format; a calibrated step that merely lands near a round
+  // design value, with readings at an arbitrary offset → not)
+  const onq = Array.from({ length: 50 }, (_, k) => (k - 25) * 7 * q), off = onq.map(v => v * 1.0002 + 0.37 * q);
+  const lab = await p.evaluate(([q, onq, off]) => [FP.formatGrid(q * (1 + 2e-4), 'acc', onq), FP.formatGrid(q * (1 - 9e-4), 'acc', onq),
+    FP.formatGrid(q * (1 + 2e-3), 'acc', onq), FP.formatGrid(q * (1 + 2e-4), 'acc', off), FP.formatGrid(9.80665 / 4096 * (1 + 4e-4), 'acc', off)], [q, onq, off]);
+  check(lab[0] === '≈1/65536 g' && lab[1] === '≈1/65536 g' && lab[2] === null && lab[3] === null && lab[4] === null,
+    `near-format steps: ${lab.map(x => x || 'null').join(', ')} (≈ only within 0.1% and with readings on the round grid)`);
+  // the simulated phones' calibrated accelerometer gains sit within ±1% of 1/4096 g: none may be called a format
+  const simFmt = await p.evaluate(() => { let n = 0; for (let seed = 1; seed <= 300; seed++) { const ph = FP.makePhone(seed);
+    const S = FP.script(ph, seed); n += FP.gridAll(S).filter(g => g.format).length; } return n; });
+  check(simFmt === 0, `300 simulated phones (gains within ±1% of round design values): ${simFmt} axes called a format`);
   // and through the pipeline: lattice values, blurred by a fraction of a step while the phone moves
   const S2 = [];
   for (let k = 0; k < 600; k++) {

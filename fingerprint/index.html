@@ -581,18 +581,20 @@ const FP = (() => {
     }
     return { G, sd };
   }
-  /* A step of 0.1 (a browser rounding, as the W3C spec asks), or 1/2^k of a unit (fixed-point storage: an
-     iPhone in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers are stored or
-     rounded, not a calibration. Within 0.1% counts: a capture whose readings sit only roughly on such a grid
-     (fused or filtered data) gives a slightly blurred estimate. Erring this way can only hide an ID, never
-     invent one. Returns a label ("1/65536 g", "≈1/65536 g", "0.1") or null. */
-  const FORMAT_TOL = 1e-3;
-  function formatGrid(step, kind) {
-    const near = (x, y) => Math.abs(x / y - 1) < FORMAT_TOL;
-    const lab = (x, y, t) => (Math.abs(x / y - 1) < 1e-6 ? '' : '≈') + t;
-    for (let d = 1; d <= 6; d++) if (near(step, 10 ** -d)) return lab(step, 10 ** -d, String(+(10 ** -d).toFixed(d)));
+  /* A step of exactly 0.1 (a browser rounding, as the W3C spec asks) or exactly 1/2^k of a unit (to 10⁻⁹,
+     or to 3× the step's own uncertainty) is not a
+     per-phone calibration. It is how the numbers are stored (an iPhone in Safari reported its accelerometer in
+     steps of 1/65536 g), or an uncalibrated sensor's design value; either way every phone of the kind shares it.
+     A capture whose readings sit only roughly on such a grid (fused or filtered data) gives a slightly blurred
+     estimate, so a step within 0.1% also counts, but only if most raw readings are themselves whole multiples
+     of the round step: a storage format has no offset, a calibration's grid sits at an arbitrary one.
+     (Designed gains are round numbers too, so nearness alone isn't enough.) Returns a label or null. */
+  function formatGrid(step, kind, vals = [], rel = 0) {
+    const onGrid = q => vals.length > 0 && vals.filter(v => { const m = v / q; return Math.abs(m - Math.round(m)) < 1e-6; }).length >= 0.5 * vals.length;
+    const test = (q, t) => { const e = Math.abs(step / q - 1); return e < Math.max(1e-9, 3 * rel) ? t : e < 1e-3 && onGrid(q) ? '≈' + t : null; };
+    for (let d = 1; d <= 6; d++) { const r = test(10 ** -d, String(+(10 ** -d).toFixed(d))); if (r) return r; }
     const bases = kind === 'acc' ? [[G0, 'g'], [1, 'm/s²']] : [[1, '°/s'], [180 / Math.PI, 'rad/s']];
-    for (const [b, u] of bases) for (let k = 0; k <= 40; k++) if (near(step, b * 2 ** -k)) return lab(step, b * 2 ** -k, `1/${2 ** k} ${u}`);
+    for (const [b, u] of bases) for (let k = 0; k <= 40; k++) { const r = test(b * 2 ** -k, `1/${2 ** k} ${u}`); if (r) return r; }
     return null;
   }
   // one three-axis sensor: S is a time-ordered list of [x, y, z]; kind is 'acc' or 'gyro'
@@ -649,7 +651,7 @@ const FP = (() => {
       if (nontriv[i] < NMIN || !R.A.some(a => a[i] !== 0) || step < 64 * floor) return per(i, { reason: 'few' });
       const mix = [0, 1, 2].filter(j => j !== i).map(j => G[i][j] / step);
       // a grid that is a round number of units is the number format, not the factory: the same on every phone
-      const format = formatGrid(step, kind);
+      const format = formatGrid(step, kind, S.map(s => s[i]), sd[i] / Math.abs(step));
       return { ok: true, step, sd: sd[i], mix, rounded: !!format, format, distinct: levels[i] };
     });
     return out;
@@ -1028,7 +1030,7 @@ function updateGrid() {
       const n = GRID.filter(g => g.ok && g.format === f).length;
       msg.push(`<span class="warn">${n} ax${n > 1 ? 'es sit' : 'is sits'} on a grid of ${f[0] === '≈' ? 'about ' + f.slice(1) : 'exactly ' + f}.</span> ` +
         (f === '0.1' ? "That's the browser rounding every reading, the same grid for every phone, so it identifies nothing."
-                     : "A step that round is how the numbers are stored, not a factory calibration: every phone of this kind shows the same one, so it identifies nothing."));
+                     : "A step that round is how the numbers are stored (or an uncalibrated sensor's design value), not a per-phone calibration: every phone of this kind shows the same one, so it identifies nothing."));
     }
     if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The changes between readings aren't whole steps, which is what noise added before the calibration looks like.`);
     if (GRID.some(g => g.reason === 'few')) msg.push('Some axes have too few changing readings yet; let the phone sit a little longer, or move it.');

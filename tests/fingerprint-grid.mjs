@@ -78,7 +78,7 @@ await run('six faces, drift + mixing + float32', { drift: 0.01, mix: 0.01, f32: 
   const R = await grid(S);
   check(R.every(g => g.ok && g.rounded && Math.abs(g.step - 0.1) < 1e-9), `rounded to 0.1: all six axes flagged as browser rounding (${R.map(g => g.rounded).join(',')})`);
 }
-// what an iPhone in Safari sent (October 2026): accelerometer readings on an exact 1/65536 g grid, the gyroscope
+// what an iPhone in Safari sent: accelerometer readings on a 1/65536 g grid, the gyroscope
 // with no grid. Rebuild that: noisy accelerometer values stored in steps of 9.80665/65536, gyroscope with noise
 // added before calibration. Expect "format" on the accelerometer, no grid on the gyroscope, no ID.
 {
@@ -99,6 +99,17 @@ await run('six faces, drift + mixing + float32', { drift: 0.01, mix: 0.01, f32: 
   check(/nothing to fingerprint/.test(await p.textContent('#fp-sub')) && /format/.test(await p.textContent('#grid-tab')), 'iPhone-like capture in the panel: "format" rows, and the ID panel says there is nothing to fingerprint');
   check(await p.evaluate(() => [FP.formatGrid(9.80665 / 4096 * 1.003, 'acc'), FP.formatGrid(0.0610352, 'gyro'), FP.formatGrid(1 / 16.4, 'gyro')].every(x => x === null)),
     'a calibrated-looking step is never called a format');
+  // a second capture with movement came out a few parts in 10⁴ off the format step: still a format
+  const lab = await p.evaluate(q => [FP.formatGrid(q * (1 + 2e-4), 'acc'), FP.formatGrid(q * (1 - 9e-4), 'acc'), FP.formatGrid(q * (1 + 2e-3), 'acc'), FP.formatGrid(0.1 * (1 + 3e-4), 'gyro')], q);
+  check(lab[0] === '≈1/65536 g' && lab[1] === '≈1/65536 g' && lab[2] === null && lab[3] === '≈0.1', `blurred format steps: ${lab.join(', ')} (0.1% tolerance)`);
+  // and through the pipeline: lattice values, blurred by a fraction of a step while the phone moves
+  const S2 = [];
+  for (let k = 0; k < 600; k++) {
+    const moving = (k % 150) > 110, v = synthSample(ph, moving ? [3 * Math.sin(k), 2 * Math.cos(k), G0 + 3 * Math.sin(k / 3), 40, -30, 20] : [0.02 * Math.sin(k / 5), 0.01, G0, 0, 0, 0], r);
+    S2.push([...v.slice(0, 3).map(x => Math.round(x / q) * q + (moving ? 0.2 * q * (r() - 0.5) : 0)), ...v.slice(3)]);
+  }
+  const R2 = await p.evaluate(S => FP.gridAll(S).map(g => [g.ok, g.format, g.step]), S2);
+  check(R2.slice(0, 3).every(g => !g[0] || g[1]) && R2.slice(0, 3).some(g => g[0]), `blurred iPhone-like capture: ${R2.slice(0, 3).map(g => g[0] ? g[1] : 'no grid').join(', ')} (never "grid")`);
 }
 check(wrong === 0, `never a confidently wrong step (${wrong} axes off by more than 1%)`);
 const t = await p.evaluate(S => { const t0 = performance.now(); FP.gridAll(S); return performance.now() - t0; }, Array.from({ length: 5 }, (_, k) => synthScript(makeSynth(k + 1, { mix: 0.005 }), k, 90)).flat().slice(0, 3000));

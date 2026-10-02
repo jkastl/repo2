@@ -71,11 +71,14 @@ Known open items:
   detector, and printed tags haven't been scanned from paper. Both need a real phone.
 - OpenCV fails to read ~5% of version 9–10 QR codes no matter which library made them, so an occasional
   scan failure in `tests/tearproof-split.mjs` is the scanner, not the tags.
-- Fingerprint (09) real-phone results so far: one iPhone 12 Pro in Safari (October 2026; iOS version not recorded) showed the accelerometer on an exact
-  1/65536 g grid (0.0001496376 m/s², all three axes; fixed-point storage, now labelled "format" and kept out of the ID)
-  and no grid on the gyroscope. Still owed: Android Chrome (expected: the browser's 0.1 grid, from Chromium's rounding),
-  Firefox on Android (unknown), the iOS permission prompt's denial path, and the still detector's thresholds against
-  real sensor noise.
+- Fingerprint (09) real-phone results so far, from one iPhone in Safari: the permission prompt and its denial message
+  work; the still detector settles on all six faces; the accelerometer sits on a 1/65536 g grid (exact in one capture,
+  within a few parts in 10^4 in a capture with movement), now labelled "format" (0.1% tolerance) and kept out of the
+  ID; the gyroscope shows no grid. Still owed: Android Chrome (expected: the browser's 0.1 grid, from Chromium's
+  rounding) and Firefox on Android (unknown).
+- Privacy: the owner tests on personal devices. Never put device models, OS versions, test dates or any measured
+  per-device values (steps, IDs, screenshots) into the repo; describe real-phone results generically ("an iPhone in
+  Safari"). The 1/65536 g step is a format shared by every such phone, so it's fine to quote.
 - Fingerprint prose has been checked against the SensorID paper (a copy was uploaded to a session; the paper's hosts are
   blocked by this environment's network policy, so don't try to fetch it). Not on the page: the paper's final step of
   rounding iPhone gain-matrix entries to whole multiples of 2^-16 °/s (M-series coprocessors), which would make a

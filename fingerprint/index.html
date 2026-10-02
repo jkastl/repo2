@@ -108,7 +108,7 @@
     </div>
     <p class="hint">Accelerations are in m/s² and include gravity, which is why a phone lying flat reads about 9.8
     on one axis. Rotation rates are in degrees per second; a gyroscope at rest should read zero, and
-    whatever it reads instead is its error. So far the page has been tried on one real phone, an iPhone 12 Pro;
+    whatever it reads instead is its error. So far the page has been tried on one real phone, an iPhone;
     everything else was tested with simulated sensor data.</p>
   </div>
 </section>
@@ -313,8 +313,9 @@
       that mix are fine. It skips the paper's last trick: on iPhones with an M-series motion coprocessor the
       matrix entries are whole multiples of 2<sup>−16</sup>&nbsp;°/s, which let the authors round a slightly blurred
       estimate (Safari's offset drifted) back to the exact values.</p>
-      <p><strong>What to expect on your phone.</strong> On an iPhone 12 Pro in Safari (tried in October 2026), the
-      accelerometer sat on a grid of exactly 1/65536&nbsp;g on all three axes. That is fixed-point storage, the same
+      <p><strong>What to expect on your phone.</strong> On an iPhone in Safari, the accelerometer sat on a grid
+      of 1/65536&nbsp;g on all three axes (exactly in one capture, to within a few parts in ten thousand in
+      another). That is fixed-point storage, the same
       kind of 2<sup>−16</sup> resolution the paper found in iPhone gyroscope data, and it is identical on every
       iPhone, so the page labels it "format" and leaves it out of the ID. Beneath it there was no coarser grid of
       the phone's own, and the gyroscope showed no grid at all, which fits the noise Apple added in iOS 12.2.
@@ -580,14 +581,18 @@ const FP = (() => {
     }
     return { G, sd };
   }
-  /* A step of exactly 0.1 (a browser rounding, as the W3C spec asks), or exactly 1/2^k of a unit (fixed-point
-     storage: an iPhone 12 Pro in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers
-     are stored or rounded, not a calibration. Returns a label for such a step, or null. */
+  /* A step of 0.1 (a browser rounding, as the W3C spec asks), or 1/2^k of a unit (fixed-point storage: an
+     iPhone in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers are stored or
+     rounded, not a calibration. Within 0.1% counts: a capture whose readings sit only roughly on such a grid
+     (fused or filtered data) gives a slightly blurred estimate. Erring this way can only hide an ID, never
+     invent one. Returns a label ("1/65536 g", "≈1/65536 g", "0.1") or null. */
+  const FORMAT_TOL = 1e-3;
   function formatGrid(step, kind) {
-    const near = (x, y) => Math.abs(x / y - 1) < 1e-6;
-    for (let d = 1; d <= 6; d++) if (near(step, 10 ** -d)) return String(+(10 ** -d).toFixed(d));
+    const near = (x, y) => Math.abs(x / y - 1) < FORMAT_TOL;
+    const lab = (x, y, t) => (Math.abs(x / y - 1) < 1e-6 ? '' : '≈') + t;
+    for (let d = 1; d <= 6; d++) if (near(step, 10 ** -d)) return lab(step, 10 ** -d, String(+(10 ** -d).toFixed(d)));
     const bases = kind === 'acc' ? [[G0, 'g'], [1, 'm/s²']] : [[1, '°/s'], [180 / Math.PI, 'rad/s']];
-    for (const [b, u] of bases) for (let k = 0; k <= 40; k++) if (near(step, b * 2 ** -k)) return `1/${2 ** k} ${u}`;
+    for (const [b, u] of bases) for (let k = 0; k <= 40; k++) if (near(step, b * 2 ** -k)) return lab(step, b * 2 ** -k, `1/${2 ** k} ${u}`);
     return null;
   }
   // one three-axis sensor: S is a time-ordered list of [x, y, z]; kind is 'acc' or 'gyro'
@@ -644,7 +649,7 @@ const FP = (() => {
       if (nontriv[i] < NMIN || !R.A.some(a => a[i] !== 0) || step < 64 * floor) return per(i, { reason: 'few' });
       const mix = [0, 1, 2].filter(j => j !== i).map(j => G[i][j] / step);
       // a grid that is a round number of units is the number format, not the factory: the same on every phone
-      const format = mix.every(m => Math.abs(m) < 1e-6) ? formatGrid(step, kind) : null;
+      const format = formatGrid(step, kind);
       return { ok: true, step, sd: sd[i], mix, rounded: !!format, format, distinct: levels[i] };
     });
     return out;
@@ -1001,7 +1006,7 @@ function updateGrid() {
     if (!g.distinct) { st = 'no data'; cls = ''; }
     else if (g.reason === 'few') { st = 'need more'; cls = 'fog'; }
     else if (!g.ok) { st = 'no grid'; cls = 'bad'; }
-    else if (g.rounded) { st = g.format === '0.1' ? 'browser 0.1' : 'format'; cls = 'fog'; }
+    else if (g.rounded) { st = /^≈?0\.1$/.test(g.format) ? 'browser 0.1' : 'format'; cls = 'fog'; }
     else { st = 'grid'; cls = 'ok'; }
     const ppm = g.ok ? g.sd / g.step * 1e6 : null;
     const per = g.ok ? (i < 3 ? (FP.G0 / g.step).toFixed(2) : (1 / g.step).toFixed(3)) : '—';
@@ -1021,7 +1026,7 @@ function updateGrid() {
     const fmts = [...new Set(GRID.filter(g => g.ok && g.rounded).map(g => g.format))];
     for (const f of fmts) {
       const n = GRID.filter(g => g.ok && g.format === f).length;
-      msg.push(`<span class="warn">${n} ax${n > 1 ? 'es sit' : 'is sits'} on a grid of exactly ${f}.</span> ` +
+      msg.push(`<span class="warn">${n} ax${n > 1 ? 'es sit' : 'is sits'} on a grid of ${f[0] === '≈' ? 'about ' + f.slice(1) : 'exactly ' + f}.</span> ` +
         (f === '0.1' ? "That's the browser rounding every reading, the same grid for every phone, so it identifies nothing."
                      : "A step that round is how the numbers are stored, not a factory calibration: every phone of this kind shows the same one, so it identifies nothing."));
     }
@@ -1158,7 +1163,7 @@ function updateDefense() {
   if (key !== walkKey) { walkKey = key; WALK = walkFor(DEFENSE); }
   const found = GRID.filter(g => g.ok && !g.rounded).length, have = GRID.filter(g => g.distinct).length;
   const rounded = GRID.filter(g => g.ok && g.rounded).length;
-  const only01 = GRID.every(g => !(g.ok && g.rounded) || g.format === '0.1');
+  const only01 = GRID.every(g => !(g.ok && g.rounded) || /^≈?0\.1$/.test(g.format));
   $('#def-grid').textContent = have ? `${found} of ${have} axes` + (rounded ? ` (+${rounded} ${only01 ? 'at 0.1' : 'format'})` : '') : '—';
   $('#def-grid').className = 'v' + (!have ? '' : found ? ' bad' : ' ok');
   $('#def-fp').textContent = !have ? '—' : FPRINT.ready ? fmtHex(FPRINT.hex).slice(0, 9) + '…' : 'none';

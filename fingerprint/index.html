@@ -581,7 +581,7 @@ const FP = (() => {
     return { G, sd };
   }
   /* A step of exactly 0.1 (a browser rounding, as the W3C spec asks), or exactly 1/2^k of a unit (fixed-point
-     storage: an iPhone tested in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers
+     storage: an iPhone 12 Pro in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers
      are stored or rounded, not a calibration. Returns a label for such a step, or null. */
   function formatGrid(step, kind) {
     const near = (x, y) => Math.abs(x / y - 1) < 1e-6;

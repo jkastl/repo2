@@ -71,7 +71,7 @@ Known open items:
   detector, and printed tags haven't been scanned from paper. Both need a real phone.
 - OpenCV fails to read ~5% of version 9–10 QR codes no matter which library made them, so an occasional
   scan failure in `tests/tearproof-split.mjs` is the scanner, not the tags.
-- Fingerprint (09) real-phone results so far: one iPhone in Safari (October 2026) showed the accelerometer on an exact
+- Fingerprint (09) real-phone results so far: one iPhone 12 Pro in Safari (October 2026; iOS version not recorded) showed the accelerometer on an exact
   1/65536 g grid (0.0001496376 m/s², all three axes; fixed-point storage, now labelled "format" and kept out of the ID)
   and no grid on the gyroscope. Still owed: Android Chrome (expected: the browser's 0.1 grid, from Chromium's rounding),
   Firefox on Android (unknown), the iOS permission prompt's denial path, and the still detector's thresholds against

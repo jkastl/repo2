@@ -108,7 +108,7 @@
     </div>
     <p class="hint">Accelerations are in m/s² and include gravity, which is why a phone lying flat reads about 9.8
     on one axis. Rotation rates are in degrees per second; a gyroscope at rest should read zero, and
-    whatever it reads instead is its error. So far the page has been tried on one real phone, an iPhone;
+    whatever it reads instead is its error. So far the page has been tried on one real phone, an iPhone 12 Pro;
     everything else was tested with simulated sensor data.</p>
   </div>
 </section>
@@ -313,7 +313,7 @@
       that mix are fine. It skips the paper's last trick: on iPhones with an M-series motion coprocessor the
       matrix entries are whole multiples of 2<sup>−16</sup>&nbsp;°/s, which let the authors round a slightly blurred
       estimate (Safari's offset drifted) back to the exact values.</p>
-      <p><strong>What to expect on your phone.</strong> On an iPhone in Safari (tried in October 2026), the
+      <p><strong>What to expect on your phone.</strong> On an iPhone 12 Pro in Safari (tried in October 2026), the
       accelerometer sat on a grid of exactly 1/65536&nbsp;g on all three axes. That is fixed-point storage, the same
       kind of 2<sup>−16</sup> resolution the paper found in iPhone gyroscope data, and it is identical on every
       iPhone, so the page labels it "format" and leaves it out of the ID. Beneath it there was no coarser grid of

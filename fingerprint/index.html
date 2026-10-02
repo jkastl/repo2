@@ -32,6 +32,13 @@
   .sinfo b { color: var(--scr-bright); font-weight: 500; } .sinfo .warn { color: var(--caution); } .sinfo .bad { color: var(--fault); } .sinfo .ok { color: var(--sig); }
   .log { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); font-size: 11px; line-height: 1.55; color: #7f90a4; white-space: pre; overflow-x: auto; max-height: 190px; }
   .log b { color: var(--scr-bright); font-weight: 400; }
+  .faces { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; padding: 12px 14px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); }
+  .face { border: 1px solid #2d3a4a; border-radius: 6px; padding: 6px 4px 5px; text-align: center; color: #6d7d90; font-size: 11px; line-height: 1.35; }
+  .face b { display: block; font-size: 14px; font-weight: 500; color: #8d9db0; }
+  .face.part { border-color: #5c4a24; color: var(--caution); } .face.part b { color: var(--caution); }
+  .face.got { border-color: #2a5a40; background: #10251a; color: var(--sig); } .face.got b { color: var(--sig); }
+  .face.now { box-shadow: 0 0 0 1px var(--ir) inset; }
+  @media (max-width: 520px) { .faces { grid-template-columns: repeat(3, 1fr); } }
   .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
   .local { display: inline-block; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: #2f8f5b; border: 1px solid currentColor; border-radius: 999px; padding: 1px 9px; margin-bottom: 10px; }
   @media (max-width: 520px) {
@@ -92,6 +99,30 @@
 
 <section>
   <div class="wrap">
+    <h2>Offset and gain from gravity</h2>
+    <div class="prose">
+      <p>Gravity is the one reference everyone carries. Lying flat, a perfect accelerometer reads exactly
+      1&nbsp;g on one axis and zero on the other two. Turn it face down and that axis should read exactly
+      −1&nbsp;g. The average of the two readings is the axis's <em>offset</em>; half the difference,
+      compared with 1&nbsp;g, is its <em>gain error</em>. A gyroscope is even simpler: at rest it should
+      read zero.</p>
+      <p>Lay the phone flat, then face down, then stand it on each long edge and each end, holding each
+      pose still for about a second. A face fills in once the page has seen it held still.</p>
+    </div>
+    <div class="panel" id="grav">
+      <div class="faces" id="grav-faces"></div>
+      <div class="plot"><canvas id="grav-cv" aria-label="Measured offset and gain error of each axis next to a perfect sensor."></canvas></div>
+      <div class="sinfo" id="grav-msg">No still poses yet.</div>
+    </div>
+    <p class="hint">The gain check assumes standard gravity, 9.80665&nbsp;m/s². Real gravity runs from about
+    9.78&nbsp;m/s² at the equator to 9.83 at the poles, so any gain error smaller than about ±0.3% could be
+    your latitude rather than your sensor. Offsets also drift as the phone warms up. Both are why
+    the next step doesn't lean on gravity at all.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
@@ -116,7 +147,7 @@
     <h2>Build plan</h2>
     <ol class="plan">
       <li class="done"><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
-      <li><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
+      <li class="done"><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
       <li><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
       <li><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
       <li><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
@@ -220,7 +251,34 @@ const FP = (() => {
     return true;
   }
 
-  return { G0, NOMINAL, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  /* ---- gravity fit. A still pose is named by the axis that carries gravity and its sign. */
+  const AXN = ['x', 'y', 'z'];
+  function poseKey(m) {
+    let best = -1;
+    for (let i = 0; i < 3; i++) if (Math.abs(m[i]) > 0.8 * G0) best = i;
+    if (best < 0) return null;
+    for (let i = 0; i < 3; i++) if (i !== best && Math.abs(m[i]) > 0.35 * G0) return null;
+    return AXN[best] + (m[best] > 0 ? '+' : '-');
+  }
+  const POSE_MIN = 40;   // still samples before a face counts
+  // poses: { 'z+': {sum:[6], n, gsum:[3], gn}, ... } → per accel axis {bias, scale, how}, gyro bias
+  function gravityFit(poses) {
+    const mean = k => poses[k] && poses[k].n >= POSE_MIN ? poses[k].sum.map(v => v / poses[k].n) : null;
+    const acc = AXN.map((n, i) => {
+      const p = mean(n + '+'), q = mean(n + '-');
+      if (p && q) return { bias: (p[i] + q[i]) / 2, scale: (p[i] - q[i]) / (2 * G0) - 1, how: 'both', plus: p[i], minus: q[i] };
+      // only one face, or none: the offset from poses where this axis is level (a tilted table shows up here)
+      const level = Object.keys(poses).filter(k => k[0] !== n).map(mean).filter(Boolean);
+      if (level.length) return { bias: level.reduce((a, m) => a + m[i], 0) / level.length, scale: null, how: 'level' };
+      return { bias: null, scale: null, how: null };
+    });
+    let gs = [0, 0, 0], gn = 0;
+    for (const k in poses) if (poses[k].gn) { gn += poses[k].gn; for (let i = 0; i < 3; i++) gs[i] += poses[k].gsum[i]; }
+    const gyro = gn >= POSE_MIN ? gs.map(v => v / gn) : null;
+    return { acc, gyro };
+  }
+
+  return { G0, NOMINAL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -230,6 +288,7 @@ const CAP = {
   samples: [],          // [ax, ay, az, gx, gy, gz] (gyro entries null when absent)
   still: [],            // parallel flags from the still detector
   source: null,         // 'sensor' | 'sim'
+  poses: {}, pose: null,      // still samples summed per face ('z+', 'x-', …)
   listening: false, nullEvents: 0, intervals: [], stillRun: 0, simTimer: 0, simPhone: null, simSeed: 0,
   MAX: 6000,
 };
@@ -248,6 +307,18 @@ function ingest(s, intervalMs) {
   CAP.still.push(st);
   if (CAP.still.length > CAP.MAX) CAP.still.splice(0, CAP.still.length - CAP.MAX);
   CAP.stillRun = st ? CAP.stillRun + 1 : 0;
+  CAP.pose = null;
+  if (CAP.stillRun >= FP.STILL_WIN) {
+    const win = CAP.samples.slice(-FP.STILL_WIN), m = [0, 1, 2].map(i => win.reduce((a, x) => a + x[i], 0) / win.length);
+    const k = FP.poseKey(m);
+    if (k) {
+      CAP.pose = k;
+      const P = CAP.poses[k] || (CAP.poses[k] = { sum: [0, 0, 0], n: 0, gsum: [0, 0, 0], gn: 0 });
+      for (let i = 0; i < 3; i++) P.sum[i] += s[i];
+      P.n++;
+      if (s[3] != null) { for (let i = 0; i < 3; i++) P.gsum[i] += s[3 + i]; P.gn++; }
+    }
+  }
   CAP.dirty = true;
 }
 
@@ -267,7 +338,7 @@ function onMotion(e) {
 }
 
 function resetCapture() {
-  CAP.samples = []; CAP.still = []; CAP.intervals = []; CAP.stillRun = 0; CAP.source = null;
+  CAP.samples = []; CAP.still = []; CAP.poses = {}; CAP.pose = null; CAP.intervals = []; CAP.stillRun = 0; CAP.source = null;
   clearInterval(CAP.simTimer); CAP.simTimer = 0; CAP.dirty = true;
 }
 
@@ -383,12 +454,80 @@ function updateCapture() {
       last.map(s => s.slice(0, 3).map(fmtNum).join(' ') + ' │ ' + s.slice(3).map(fmtNum).join(' ')).join('\n')
     : 'no samples yet';
 }
+
+/* ================================================================
+   step 2: offset and gain from gravity
+   ================================================================ */
+const FACE_HINT = { 'z+': 'flat', 'z-': 'face down', 'x+': 'long edge', 'x-': 'other long edge', 'y+': 'on an end', 'y-': 'other end' };
+let GRAV = FP.gravityFit({});
+function updateGravity() {
+  GRAV = FP.gravityFit(CAP.poses);
+  $('#grav-faces').innerHTML = ['z+', 'z-', 'x+', 'x-', 'y+', 'y-'].map(k => {
+    const n = CAP.poses[k] ? CAP.poses[k].n : 0;
+    const cls = n >= FP.POSE_MIN ? 'got' : n ? 'part' : '';
+    return `<div class="face ${cls}${CAP.pose === k ? ' now' : ''}" data-k="${k}"><b>${k[0]}${k[1] === '+' ? '+' : '−'}</b>${FACE_HINT[k]}</div>`;
+  }).join('');
+  const got = Object.keys(CAP.poses).filter(k => CAP.poses[k].n >= FP.POSE_MIN).length;
+  const both = GRAV.acc.filter(a => a.how === 'both').length;
+  const msg = $('#grav-msg');
+  if (!got) msg.innerHTML = 'No still poses yet.';
+  else {
+    const parts = [`<b>${got}</b> of 6 faces held still.`];
+    if (both < 3) {
+      const need = FP.AXN.filter((n, i) => GRAV.acc[i].how !== 'both').map(n => n + '+ and ' + n + '−');
+      parts.push(`Gain needs both faces of an axis: still missing ${need.join(', ')}.`);
+    } else parts.push('<span class="ok">All three axes fitted against ±1 g.</span>');
+    if (GRAV.acc.some(a => a.how === 'level')) parts.push('<span class="warn">Offsets in amber assume the surface is level; a 1° tilt alone reads 0.17 m/s².</span>');
+    msg.innerHTML = parts.join(' ');
+  }
+  drawGravity();
+}
+function drawGravity() {
+  const cv = $('#grav-cv');
+  const narrow = cv.parentElement.clientWidth < 560;
+  const groups = [
+    { name: 'accel offset', unit: 'm/s²', lim: 0.3, vals: GRAV.acc.map(a => a.bias), rough: GRAV.acc.map(a => a.how === 'level'), d: 3 },
+    { name: 'accel gain error', unit: '%', lim: 1, vals: GRAV.acc.map(a => a.scale == null ? null : a.scale * 100), d: 2 },
+    { name: 'gyro offset', unit: '°/s', lim: 3, vals: GRAV.gyro ? GRAV.gyro : [null, null, null], d: 2 },
+  ];
+  const rowH = 22, gH = 3 * rowH + 30;
+  const H = narrow ? groups.length * gH + 8 : gH + 8;
+  const { ctx, w, h } = fit(cv, H / Math.max(1, cv.parentElement.clientWidth), H, H);
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  const colW = narrow ? w : w / 3;
+  groups.forEach((g, gi) => {
+    const x0 = narrow ? 0 : gi * colW, y0 = narrow ? gi * gH : 0;
+    const L = x0 + 26, R = x0 + colW - 16, C = (L + R) / 2;
+    ctx.font = font(10); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+    ctx.fillText(`${g.name} (${g.unit})`, x0 + 14, y0 + 16);
+    ctx.textAlign = 'center'; ctx.fillStyle = COL.grid2;
+    ctx.fillText('perfect', C, y0 + 3 * rowH + 28 + 0);
+    ctx.strokeStyle = COL.grid2; ctx.setLineDash([2, 3]);
+    ctx.beginPath(); ctx.moveTo(C, y0 + 24); ctx.lineTo(C, y0 + 3 * rowH + 18); ctx.stroke(); ctx.setLineDash([]);
+    for (let i = 0; i < 3; i++) {
+      const y = y0 + 30 + i * rowH + 4;
+      ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(R, y); ctx.stroke();
+      ctx.fillStyle = AXC[i]; ctx.textAlign = 'right'; ctx.fillText(FP.AXN[i], L - 8, y + 3.5);
+      const v = g.vals[i];
+      if (v == null) { ctx.fillStyle = COL.grid2; ctx.textAlign = 'center'; ctx.fillText('—', C + 30, y - 4); continue; }
+      const xv = C + (R - L) / 2 * clamp(v / g.lim, -1, 1);
+      ctx.strokeStyle = g.rough && g.rough[i] ? COL.caution : AXC[i]; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(C, y); ctx.lineTo(xv, y); ctx.stroke();
+      ctx.fillStyle = ctx.strokeStyle; ctx.beginPath(); ctx.arc(xv, y, 3.5, 0, TAU); ctx.fill();
+      const txt = (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(g.d) + (Math.abs(v) > g.lim ? ' ▸' : '');
+      ctx.font = font(10); ctx.fillStyle = COL.bright;
+      ctx.textAlign = v >= 0 ? 'right' : 'left';
+      ctx.fillText(txt, v >= 0 ? C - 6 : C + 6, y - 5);
+    }
+  });
+}
 const capView = register($('#cap'), {
-  tick() { if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); } },
-  resize() { drawCapture(); },
+  tick() { if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); } },
+  resize() { drawCapture(); drawGravity(); },
 });
 io.observe($('#cap'));
-drawCapture();
+drawCapture(); updateGravity();
 </script>
 </body>
 </html>

@@ -53,3 +53,4 @@ for whole-number ADC counts `A`, with known step, offset, scale error, bias and 
 | file | checks |
 |---|---|
 | `fingerprint-capture.mjs` | Step 1. 1200/390 px in both themes; desktop "no sensor" message; synthetic events stored at full precision on all six axes; still/moving detector; rate from `interval`; accelerometer-only events; mocked iOS `requestPermission` granted and denied; the simulator. |
+| `fingerprint-gravity.mjs` | Step 2. Recomputes the prose numbers (a 1° tilt reads 0.17 m/s²; WGS84 gravity 9.78 at the equator, 9.83 at the poles, about ±0.3%). Six faces on five phones (two with float32 values): offsets within 0.002 m/s², gain errors within 0.03%, gyro offsets within 0.02 °/s. Flat + face down only: z fitted, x/y level-only with a warning. A 2° tilted table shows up in the level offset as g·sin 2°. 1200/390 px in both themes. |

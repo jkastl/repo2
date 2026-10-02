@@ -2,6 +2,8 @@
 
 A static GitHub Pages site (served from `main`, root folder) at https://jkastl.github.io/tolerance/.
 Commit and push straight to `main`. There are no feature branches or PRs, no build step, and no dependencies.
+If a session is set up on its own branch, commit there too, but always also push to `main`
+(`git push origin HEAD:main`); that's the owner's standing instruction, and `main` is what the site serves.
 
 ## Layout
 
@@ -44,7 +46,24 @@ QR version 3-H encoder/decoder). Lab pages may also load `../core.js` for the ca
 - No network calls. Sensor and camera features process data on the device and say so on the page.
 - Keep the prose accurate; cite sources in the page's reading list.
 
+## Lab progress
+
+Each Lab page's build plan and status pill are the source of truth. As of October 2026: Traitors (08) and
+Tear-Proof Secrets (10) are **live**; The Liar's Game (07) and Your Phone's Fingerprint (09) are **blueprint**.
+Known open items:
+
+- Tear-Proof camera scanning (`BarcodeDetector`, Chrome on Android) has only been tested with a mocked
+  detector, and printed tags haven't been scanned from paper. Both need a real phone.
+- OpenCV fails to read ~5% of version 9–10 QR codes no matter which library made them, so an occasional
+  scan failure in `tests/tearproof-split.mjs` is the scanner, not the tags.
+- Tear-Proof tags record the secret's length (documented on the page). Padding to a fixed size was offered
+  and not taken up.
+
 ## Checking changes
+
+Existing checks live in `tests/` (see `tests/README.md`; `sh tests/run.sh` runs them all). Add a test file
+there for each new Lab page, alongside the build-plan step it checks.
+
 
 Headless Chromium is available in the cloud environment:
 

@@ -46,6 +46,13 @@
   .gtab th:first-child, .gtab td:first-child { text-align: left; }
   .gwrap { overflow-x: auto; }
   @media (max-width: 520px) { .gtab th, .gtab td { padding: 6px 6px; font-size: 11px; } .gtab .wide { display: none; } }
+  .idrow { display: flex; gap: 16px; align-items: center; padding: 16px 14px 14px; font-family: var(--mono); }
+  .idrow canvas { width: 76px; height: 76px; flex: none; border-radius: 8px; background: #151c25; }
+  .idrow .k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #6d7d90; }
+  .idrow .hex { font-size: 22px; letter-spacing: .04em; color: var(--scr-bright); overflow-wrap: anywhere; line-height: 1.3; margin-top: 2px; }
+  .idrow .hex.wait { color: #4d5b6c; }
+  .idrow .sub { font-size: 12px; color: var(--scr-text); margin-top: 2px; }
+  @media (max-width: 520px) { .idrow .hex { font-size: 18px; } .idrow canvas { width: 64px; height: 64px; } }
   .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
   .local { display: inline-block; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: #2f8f5b; border: 1px solid currentColor; border-radius: 999px; padding: 1px 9px; margin-bottom: 10px; }
   @media (max-width: 520px) {
@@ -160,6 +167,48 @@
 
 <section>
   <div class="wrap">
+    <h2>Your fingerprint</h2>
+    <div class="prose">
+      <p>The grid steps are numbers the factory chose for this one phone, and they don't change: not
+      when you clear cookies, not in a private window, not after a factory reset, because they live in the
+      sensor's calibration, not in the browser. Round each step to 20 parts per million, hash the
+      results, and you have an ID.</p>
+      <p>Press <b>Keep this one</b>, then capture again. The check compares the steps themselves, so it
+      can tell the same phone from a different one even if a step happens to sit on a rounding boundary and
+      flips the hex.</p>
+    </div>
+    <div class="panel" id="fp">
+      <div class="idrow">
+        <canvas id="fp-glyph" width="76" height="76" aria-label="A pattern generated from the fingerprint"></canvas>
+        <div style="min-width:0">
+          <div class="k">fingerprint</div>
+          <div class="hex wait" id="fp-hex">none yet</div>
+          <div class="sub" id="fp-sub">Needs a grid on at least three axes.</div>
+        </div>
+      </div>
+      <div class="ros">
+        <div class="ro"><div class="k">axes used</div><div class="v" id="fp-axes">—</div></div>
+        <div class="ro"><div class="k">precision</div><div class="v" id="fp-prec">—</div></div>
+        <div class="ro"><div class="k">bits, at most</div><div class="v" id="fp-bits">—</div></div>
+        <div class="ro"><div class="k">kept</div><div class="v" id="fp-kept">—</div></div>
+      </div>
+      <div class="ctl" style="border-top:1px solid var(--bezel-edge)">
+        <button id="fp-keep" disabled>Keep this one</button>
+        <button id="fp-same" disabled>Same simulated phone again</button>
+        <button id="fp-other">Another simulated phone</button>
+      </div>
+      <div class="sinfo" id="fp-cmp">Nothing kept yet. It lives only in this tab's memory: reload and it's gone.</div>
+    </div>
+    <p class="hint"><b>Bits, at most</b> assumes each gain could fall anywhere in a ±1% band with every
+    20&nbsp;ppm slice equally likely: log₂(2% ÷ 20&nbsp;ppm) ≈ 10 bits per axis. Real gains aren't spread
+    that evenly, and the axes of one chip may not vary independently, so treat it as a ceiling, not a
+    measurement. The SensorID authors measured real iPhones instead: about 67 bits for the iPhone 6S, from
+    its gyroscope and magnetometer.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
@@ -186,7 +235,7 @@
       <li class="done"><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
       <li class="done"><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
       <li class="done"><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
-      <li><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
+      <li class="done"><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
       <li><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
       <li><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
     </ol>
@@ -327,7 +376,8 @@ const FP = (() => {
     }
     let rr = 0, res = 0, nn = 0, k = 0;
     for (const x of d) { const n = Math.round(x / s), f = x / s - n; rr += f * f; res += (x - n * s) ** 2; nn += n * n; k++; }
-    return { s, rms: Math.sqrt(rr / k), sd: k > 1 ? Math.sqrt(res / (k - 1) / nn) : 0 };
+    // sd: the least-squares error, ×3 because float32 rounding errors in neighbouring gaps are correlated
+    return { s, rms: Math.sqrt(rr / k), sd: k > 1 ? 3 * Math.sqrt(res / (k - 1) / nn) : 0 };
   }
   function gridFind(vals) {
     const u = [...new Set(vals.filter(v => v != null && isFinite(v)))].sort((a, b) => a - b);
@@ -362,7 +412,37 @@ const FP = (() => {
     return out;
   }
 
-  return { G0, NOMINAL, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  /* ---- fingerprint: each step rounded to a 20 ppm slice of its logarithm, then hashed */
+  const FP_BIN = 2e-5, FP_SPREAD = 0.02;
+  function fnv64(str) {
+    let h = 0xcbf29ce484222325n;
+    for (let i = 0; i < str.length; i++) { h ^= BigInt(str.charCodeAt(i)); h = (h * 0x100000001b3n) & 0xffffffffffffffffn; }
+    return h.toString(16).padStart(16, '0');
+  }
+  function fingerprint(grids) {
+    const use = grids.map((g, i) => ({ g, i })).filter(a => a.g && a.g.ok && !a.g.rounded);
+    const rel = use.map(a => a.g.sd / a.g.step);
+    const worst = rel.length ? Math.max(...rel) : null;
+    const key = use.map(a => a.i + ':' + Math.round(Math.log(a.g.step) / FP_BIN)).join(';');
+    return {
+      axes: use.map(a => a.i), steps: use.map(a => a.g.step), rel,
+      worst, ready: use.length >= 3 && worst < FP_BIN / 8,
+      hex: use.length ? fnv64(key) : null,
+      bits: use.length * Math.log2(FP_SPREAD / FP_BIN),
+    };
+  }
+  // same phone? Compare the steps on the axes both captures have.
+  function compareFP(A, B) {
+    const rows = [];
+    A.axes.forEach((ax, k) => {
+      const j = B.axes.indexOf(ax); if (j < 0) return;
+      const d = Math.abs(B.steps[j] / A.steps[k] - 1), tol = Math.max(1e-6, 5 * Math.hypot(A.rel[k], B.rel[j]));
+      rows.push({ ax, ppm: d * 1e6, ok: d < tol });
+    });
+    return { rows, same: rows.length >= 3 && rows.every(r => r.ok), hexSame: A.hex === B.hex };
+  }
+
+  return { G0, NOMINAL, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -465,13 +545,15 @@ function stopAll() {
 }
 
 /* simulator: a scripted capture of one made-up phone visiting all six faces, fed in at ~6× real time */
+function simName(seed) { return '#' + (seed % 10000).toString().padStart(4, '0'); }
 function simulate(seed, instant = false) {
   stopAll(); resetCapture();
   CAP.simSeed = seed == null ? (Math.random() * 2 ** 32) >>> 0 : seed;
   CAP.simPhone = FP.makePhone(CAP.simSeed);
-  const all = FP.script(CAP.simPhone, CAP.simSeed + 1);
+  CAP.simRun = (CAP.simRun || 0) + 1;                       // fresh noise on every run, same flaws
+  const all = FP.script(CAP.simPhone, (CAP.simSeed + 1 + 7919 * CAP.simRun) >>> 0);
   CAP.source = 'sim';
-  capMsg(`Simulating phone <b>#${(CAP.simSeed % 10000).toString().padStart(4, '0')}</b>: flat, face down, then each edge in turn. Its flaws are made up; your phone's are real.`);
+  capMsg(`Simulating phone <b>${simName(CAP.simSeed)}</b>: flat, face down, then each edge in turn. Its flaws are made up; your phone's are real.`);
   if (instant) { for (const s of all) ingest(s, 1000 / 60); return; }
   let i = 0;
   capEls.stop.disabled = false;
@@ -698,16 +780,75 @@ $('#grid-ax').addEventListener('click', e => {
   for (const x of $('#grid-ax').children) x.classList.toggle('on', x === bt);
   drawGrid();
 });
+
+/* ================================================================
+   step 4: fingerprint and stability
+   ================================================================ */
+let FPRINT = FP.fingerprint([]), KEPT = null;
+const fmtHex = h => h.match(/.{4}/g).join(' ');
+function updateFingerprint() {
+  FPRINT = FP.fingerprint(GRID);
+  const F = FPRINT, hex = $('#fp-hex'), sub = $('#fp-sub');
+  $('#fp-axes').textContent = F.axes.length ? F.axes.length + ' of 6' : '—';
+  $('#fp-prec').textContent = F.worst == null ? '—' : F.worst * 1e6 < 0.001 ? '< 0.001 ppm' : (F.worst * 1e6).toPrecision(2) + ' ppm';
+  $('#fp-prec').className = 'v' + (F.worst == null ? '' : F.worst < FP.FP_BIN / 8 ? ' ok' : ' fog');
+  $('#fp-bits').textContent = F.axes.length ? '≈ ' + Math.round(F.bits) : '—';
+  if (F.ready) {
+    hex.textContent = fmtHex(F.hex); hex.className = 'hex';
+    sub.textContent = `from the grid steps of ${F.axes.map(i => AXIS_NAME[i]).join(', ')}`;
+  } else {
+    hex.textContent = 'none yet'; hex.className = 'hex wait';
+    sub.textContent = F.axes.length < 3 ? 'Needs a grid on at least three axes.'
+      : `Steps known to ${(F.worst * 1e6).toPrecision(2)} ppm; needs ${FP.FP_BIN / 8 * 1e6} ppm. Turn the phone over to sharpen them.`;
+  }
+  $('#fp-keep').disabled = !F.ready;
+  $('#fp-same').disabled = CAP.source !== 'sim' || CAP.simTimer !== 0;
+  drawGlyph(F.ready ? F.hex : null);
+  updateCompare();
+}
+function updateCompare() {
+  const el = $('#fp-cmp');
+  $('#fp-kept').textContent = KEPT ? fmtHex(KEPT.hex).slice(0, 9) + '…' : '—';
+  if (!KEPT) { el.innerHTML = 'Nothing kept yet. It lives only in this tab\'s memory: reload and it\'s gone.'; return; }
+  if (!FPRINT.ready) { el.innerHTML = `Kept <b>${fmtHex(KEPT.hex)}</b>${KEPT.label ? ' (' + KEPT.label + ')' : ''}. Now capture again: press <b>Start sensors</b> or simulate.`; return; }
+  const C = FP.compareFP(KEPT, FPRINT);
+  const list = C.rows.map(r => `${AXIS_NAME[r.ax]} ${r.ppm < 0.001 ? '< 0.001 ppm' : r.ppm < 1000 ? r.ppm.toPrecision(2) + ' ppm' : (r.ppm / 1e4).toFixed(2) + '%'}`).join(' · ');
+  el.innerHTML = (C.same
+      ? `<span class="ok">Same phone.</span> Every step matches the kept one${C.hexSame ? ', and so does the hex' : '; one step sits on a rounding boundary, so the hex differs'}.`
+      : C.rows.length < 3 ? '<span class="warn">Too few axes in common to compare.</span>'
+      : `<span class="bad">Different phone.</span> The steps disagree by far more than they could wander.`) +
+    `<br>Step differences: ${list || '—'}`;
+}
+function drawGlyph(hex) {
+  const cv = $('#fp-glyph'), dpr = Math.min(window.devicePixelRatio || 1, 2), S = cv.clientWidth || 76;
+  cv.width = S * dpr; cv.height = S * dpr;
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#151c25'; ctx.fillRect(0, 0, S, S);
+  if (!hex) return;
+  const bits = BigInt('0x' + hex), hue = Number(bits >> 54n) % 360;
+  const N = 7, c = S / (N + 1), o = c / 2;
+  ctx.fillStyle = `hsl(${hue} 70% 62%)`;
+  for (let y = 0; y < N; y++) for (let x = 0; x < 4; x++) {
+    if ((bits >> BigInt(y * 4 + x)) & 1n) { ctx.fillRect(o + x * c, o + y * c, c - 1, c - 1); ctx.fillRect(o + (N - 1 - x) * c, o + y * c, c - 1, c - 1); }
+  }
+}
+$('#fp-keep').addEventListener('click', () => {
+  if (!FPRINT.ready) return;
+  KEPT = { ...FPRINT, label: CAP.source === 'sim' ? 'simulated phone ' + simName(CAP.simSeed) : 'your phone' };
+  updateCompare();
+});
+$('#fp-same').addEventListener('click', () => simulate(CAP.simSeed));
+$('#fp-other').addEventListener('click', () => simulate());
 const capView = register($('#cap'), {
   tick() {
     if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); CAP.gridDirty = true; }
     const now = performance.now();
-    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); }
+    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); updateFingerprint(); }
   },
-  resize() { drawCapture(); drawGravity(); drawGrid(); },
+  resize() { drawCapture(); drawGravity(); drawGrid(); drawGlyph(FPRINT.ready ? FPRINT.hex : null); },
 });
 capView.visible = true;   // the capture feeds every panel below, so it always runs
-drawCapture(); updateGravity(); updateGrid();
+drawCapture(); updateGravity(); updateGrid(); updateFingerprint();
 </script>
 </body>
 </html>

@@ -48,9 +48,8 @@ QR version 3-H encoder/decoder). Lab pages may also load `../core.js` for the ca
 
 ## Lab progress
 
-Each Lab page's build plan and status pill are the source of truth. As of October 2026: Traitors (08) and
-Tear-Proof Secrets (10) are **live**; The Liar's Game (07) is **building** (steps 1–4 of 5 done); Your Phone's Fingerprint (09)
-is **blueprint**.
+Each Lab page's build plan and status pill are the source of truth. As of October 2026: The Liar's Game (07),
+Traitors (08) and Tear-Proof Secrets (10) are **live**; Your Phone's Fingerprint (09) is **blueprint**.
 Known open items:
 
 - Liar's Game questioner (`LG.question`) searches exactly only below 24 live candidates (cost grows fast past that). It's

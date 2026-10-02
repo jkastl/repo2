@@ -74,7 +74,7 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 07 <span class="status building">building</span></div>
+    <div class="eyebrow">Lab · 07 <span class="status live">live</span></div>
     <h1>The Liar's Game</h1>
     <div class="lede">
       <p>I'm thinking of a number from 1 to 1,000,000. Ask me yes-or-no questions. With honest
@@ -183,23 +183,51 @@
 
 <section>
   <div class="wrap">
-    <h2>How it will work</h2>
+    <h2>Questions are bits, lies are bit errors</h2>
     <div class="prose">
-      <p><strong>You ask, the page lies.</strong> The page never picks a number. It's an
-      <em>adversary</em>: after every question it chooses whichever answer keeps the most
-      possibilities alive, lying whenever a lie hurts you more than the truth. You can't
-      out-guess it by luck, only by asking well.</p>
-      <p><strong>The board</strong> shows every candidate number as a cell colored by how many lies it
-      would take for that number to be the answer: 0 lies (still clean), 1 lie (suspect), or
-      more than the allowed lies (dead). Asking a question splits the board, and whichever side the
-      page says "no" to gets one lie closer to dead.</p>
-      <p><strong>The volume meter</strong> is the heart of it. Berlekamp's trick: give every candidate a
-      weight equal to the number of answer sequences you still can't rule out for it. The total
-      weight can at most halve with each question. If the weight exceeds 2<sup>q</sup> with
-      <em>q</em> questions left, you're provably stuck. The meter shows that bound live, so
-      you can watch a bad question waste your budget.</p>
-      <p><strong>Reverse mode:</strong> you pick the number and you lie. The page asks the questions and
-      still finds you, in the minimum number the math allows.</p>
+      <p>Write the answers down as you go: yes = 1, no = 0. After <i>q</i> questions you have a <i>q</i>-bit
+      word. If I never lie, each number produces exactly one word, and you need enough bits to give a million numbers
+      their own word: 2<sup>20</sup> = 1,048,576, so 20 questions.</p>
+      <p>A lie flips one bit. Now each number owns not one word but a little cloud of them: its honest word plus
+      every word one flip away, <i>q</i> + 1 words in all. Two numbers' clouds can't overlap, or one word would fit both
+      and you couldn't tell them apart. So a million clouds of size <i>q</i> + 1 have to fit among the 2<sup><i>q</i></sup>
+      words: 10<sup>6</sup> × (<i>q</i> + 1) ≤ 2<sup><i>q</i></sup>. At <i>q</i> = 24 the clouds need 25 million words and
+      there are only 16.8 million. At 25 they need 26 million and there are 33.5 million. With <i>k</i> lies the cloud
+      is everything within <i>k</i> flips, C(<i>q</i>, 0) + … + C(<i>q</i>, <i>k</i>) words, which is why the
+      million-number board says 25, 29 and 33 for one, two and three lies.</p>
+      <p>That inequality is the <strong>sphere-packing bound</strong> (or Hamming bound) from coding theory, and the
+      game's volume is the same count made mid-game: the words still available to each number, given the answers so far.
+      The meter is a sphere-packing bound you can watch.</p>
+      <p>If you had to write all 25 questions down before hearing any answers, you'd be choosing a million 25-bit
+      codewords that stay at least three flips apart: an <strong>error-correcting code</strong>. One exists. A Hamming
+      code shortened to 20 data bits and 5 check bits has 2<sup>20</sup> codewords, enough for a million, and corrects
+      any single flip. So with one lie and a million numbers, hearing the answers as you go buys nothing. With more lies,
+      or a liar allowed a fixed <em>fraction</em> of lies, feedback does help. Over many questions, fixed questions only cope
+      if fewer than a quarter of the answers are lies, while adaptive questions can handle any fraction below a third
+      (Spencer and Winkler).</p>
+      <p>The same packing explains why the reverse game can't catch an extra lie. In the best strategies the clouds use up
+      nearly every word. Sixteen numbers with one lie fit exactly into 7 questions (16 × 8 = 2<sup>7</sup>, the [7,4]
+      Hamming code), so every possible answer word decodes to some number and none is left to signal "you cheated".
+      Codes work the same way. A code can correct <i>t</i> errors, or detect some extra ones, but every word kept
+      in reserve for detection is one that can't be used for a message.</p>
+    </div>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>On 1–64 with one lie, press <b>suggest a question</b> every time. It finishes in exactly 10, and the history
+        points out the question I lied on. Play again: the lie moves.</li>
+        <li>Ask the six binary digits first (1, 2, 4, …, 32). Each one cuts every class exactly in half, so the meter
+        runs parallel to the line. Honest binary search isn't wrong here, it just isn't finished: four more
+        suggested questions find the number, 10 in all.</li>
+        <li>Start with "≥ 60" instead. The meter jumps over the line and turns red, and it can never come back: the best
+        question halves the volume, and the capacity halves too.</li>
+        <li>Set lies to 0 and the board is plain binary search, 6 questions. Then try 1, 2, 3 lies: 10, 13, 16.
+        On the million board it's 20, 25, 29, 33. A lie costs about log₂ <i>q</i> extra questions, because that's
+        how many bits it takes to say <em>where</em> the lie was.</li>
+        <li>In <b>Your turn to lie</b>, lie on the very first answer. I still get your number and name the question.
+        Then set the limit to 1 and lie twice: I name the wrong number without blinking.</li>
+        <li>Give the picture board to a kid with one fib allowed: 20 pictures, never more than 8 questions.</li>
+      </ol>
     </div>
   </div>
 </section>
@@ -216,7 +244,7 @@
         <ul><li>Cells colored by lies used, a question history, and the volume meter against 2<sup>q</sup>.</li></ul></li>
       <li class="done"><b>Reverse mode.</b> The page asks using a volume-halving strategy. You answer with Yes/No and may lie up to k times, and it announces your number.</li>
       <li class="done"><b>Scale and settings.</b> 1–1,000,000 with 0–3 lies (the board becomes a histogram of the lie-count classes), and a "kid mode" with 1–20 and picture questions.</li>
-      <li><b>Write-up.</b> The link to codes: each question is a bit, lies are bit errors, and the questioner is designing an error-correcting code one bit at a time. Add the "try this" list and the deep cut.</li>
+      <li class="done"><b>Write-up.</b> The link to codes: each question is a bit, lies are bit errors, and the questioner is designing an error-correcting code one bit at a time. Add the "try this" list and the deep cut.</li>
     </ol>
   </div>
 </section>
@@ -226,18 +254,33 @@
     <h2>The deep cut</h2>
     <div class="deep">
       <p>Stanisław Ulam posed the question in his 1976 autobiography, <em>Adventures of a
-      Mathematician</em>, and Alfréd Rényi had described a version in 1961. Andrzej Pelc settled the
-      one-lie case in 1987: for a million numbers it's 25 questions. Each extra lie costs more, and
-      the exact answers for larger k took years of casework.</p>
-      <p>What makes it more than a puzzle is that it's error-correcting codes <em>with
-      feedback</em>. Because you hear each answer before asking the next question, you can adapt,
-      and adaptive questioning sometimes needs fewer questions than any fixed code.</p>
+      Mathematician</em>, and Alfréd Rényi had described a version in 1961. Elwyn Berlekamp had already found the key tool
+      in 1964, in his thesis on codes with feedback: the volume, and the fact that each answer splits it exactly in two.
+      Andrzej Pelc settled the one-lie case in 1987: for <i>n</i> numbers you need the least <i>q</i> with
+      <i>n</i>(<i>q</i> + 1) ≤ 2<sup><i>q</i></sup> when <i>n</i> is even, and
+      <i>n</i>(<i>q</i> + 1) + (<i>q</i> − 1) ≤ 2<sup><i>q</i></sup> when <i>n</i> is odd. For a million that's 25.
+      Two lies (Guzicki, 1990) and three (Deppe, 2000) took long casework.</p>
+      <p>The odd case is the volume bound failing. With 3 numbers and one lie the volume is 3 × 5 = 15, which fits in 4 questions
+      (2<sup>4</sup> = 16). But a useful first question splits the numbers 2 and 1, and if I answer for the 2 the volume left
+      is 2 × 4 + 1 = 9, more than the 8 that three questions can handle. You need 5.
+      This page's questioner halves the volume while there are many candidates and switches to exhaustive search once
+      24 or fewer remain, because those endgame traps are real. Its test file checks it against every possible answer
+      sequence: a million numbers in exactly 20, 25, 29 and 33 questions for 0 to 3 lies, and Pelc's formula for every
+      size up to 200 with one lie.</p>
+      <p>The liar here never commits to a number. It's an adversary that answers whichever way leaves you more work,
+      which is the same as a real liar who picked the worst number for you in advance. Any strategy that beats the
+      adversary beats every real player too, so "the page cheats" makes the guarantee stronger, not weaker.</p>
     </div>
     <h3>Reading</h3>
     <ul class="refs">
+      <li>S. M. Ulam, <i>Adventures of a Mathematician</i>, Scribner, 1976.</li>
+      <li>E. R. Berlekamp, “Block coding for the binary symmetric channel with noiseless, delayless feedback,” in <i>Error Correcting Codes</i>, Wiley, 1968.</li>
+      <li>A. Pelc, “Solution of Ulam's problem on searching with a lie,” <i>Journal of Combinatorial Theory A</i> 44, 1987.</li>
+      <li>W. Guzicki, “Ulam's searching game with two lies,” <i>Journal of Combinatorial Theory A</i> 54, 1990.</li>
+      <li>C. Deppe, “Solution of Ulam's searching game with three lies or an optimal adaptive strategy for binary three-error-correcting codes,” <i>Discrete Mathematics</i> 224, 2000.</li>
       <li>A. Pelc, “Searching games with errors—fifty years of coping with liars,” <i>Theoretical Computer Science</i> 270, 2002.</li>
-      <li>E. R. Berlekamp, “Block coding for the binary symmetric channel with noiseless, delayless feedback,” 1968.</li>
-      <li>J. Spencer &amp; P. Winkler, “Three thresholds for a liar,” <i>Combinatorics, Probability and Computing</i>, 1992.</li>
+      <li>J. Spencer &amp; P. Winkler, “Three thresholds for a liar,” <i>Combinatorics, Probability and Computing</i> 1, 1992.</li>
+      <li>R. W. Hamming, “Error detecting and error correcting codes,” <i>Bell System Technical Journal</i> 29, 1950.</li>
     </ul>
   </div>
 </section>

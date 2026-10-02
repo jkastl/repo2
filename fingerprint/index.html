@@ -39,6 +39,13 @@
   .face.got { border-color: #2a5a40; background: #10251a; color: var(--sig); } .face.got b { color: var(--sig); }
   .face.now { box-shadow: 0 0 0 1px var(--ir) inset; }
   @media (max-width: 520px) { .faces { grid-template-columns: repeat(3, 1fr); } }
+  .gtab { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .gtab th, .gtab td { text-align: right; padding: 6px 10px; border-top: 1px solid var(--bezel-edge); white-space: nowrap; }
+  .gtab th { color: #6d7d90; font-weight: 400; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+  .gtab td { color: var(--scr-bright); } .gtab td.ok { color: var(--sig); } .gtab td.bad { color: var(--fault); } .gtab td.fog { color: var(--caution); }
+  .gtab th:first-child, .gtab td:first-child { text-align: left; }
+  .gwrap { overflow-x: auto; }
+  @media (max-width: 520px) { .gtab th, .gtab td { padding: 6px 6px; font-size: 11px; } .gtab .wide { display: none; } }
   .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
   .local { display: inline-block; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: #2f8f5b; border: 1px solid currentColor; border-radius: 999px; padding: 1px 9px; margin-bottom: 10px; }
   @media (max-width: 520px) {
@@ -123,6 +130,36 @@
 
 <section>
   <div class="wrap">
+    <h2>The grid</h2>
+    <div class="prose">
+      <p>Inside the sensor, an analog-to-digital converter turns each reading into a whole number of
+      counts. The phone then multiplies by a calibration gain measured for <em>this</em> unit at the
+      factory, adds an offset, and hands the result to the browser. So every value the page sees is
+      <code>gain × whole number + offset</code>. Zoom in far enough and the readings aren't continuous at all:
+      they sit on a grid whose spacing is the factory's gain.</p>
+      <p>Finding the spacing is a greatest-common-divisor problem with decimals. Sort the distinct values,
+      take the gaps between neighbours, and look for the largest step that every gap is a whole multiple
+      of. Noise from the physical sensor doesn't blur it, because that noise happens before the counting:
+      it moves a reading to a different grid point, never between two.</p>
+    </div>
+    <div class="panel" id="grid">
+      <div class="ctl">
+        <span class="lbl">axis</span>
+        <span class="seg" id="grid-ax"><button data-v="0" class="on">accel x</button><button data-v="1">y</button><button data-v="2">z</button><button data-v="3">gyro x</button><button data-v="4">y</button><button data-v="5">z</button></span>
+      </div>
+      <div class="plot"><canvas id="grid-cv" aria-label="Histogram of one axis's raw values, zoomed in to show the grid, and the same values folded onto one grid step."></canvas></div>
+      <div class="gwrap"><table class="gtab" id="grid-tab"></table></div>
+      <div class="sinfo" id="grid-msg">Capture some samples first.</div>
+    </div>
+    <p class="hint">Top: one axis's readings, zoomed in until single grid points show as spikes with empty
+    space between them. Bottom: every reading folded onto a single step (where it falls between two grid
+    lines). A grid shows as one tall spike; no grid shows as a flat spread. "Counts per g" is how many
+    grid steps make up standard gravity, a number set at the factory.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
@@ -148,7 +185,7 @@
     <ol class="plan">
       <li class="done"><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
       <li class="done"><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
-      <li><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
+      <li class="done"><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
       <li><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
       <li><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
       <li><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
@@ -278,7 +315,54 @@ const FP = (() => {
     return { acc, gyro };
   }
 
-  return { G0, NOMINAL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  /* ---- grid recovery: the largest step that every gap between distinct values is a whole multiple of.
+     Small gaps fix the step first; larger gaps are let in as the estimate gets good enough to count them. */
+  const GRID_TOL = 0.05;     // rms of the leftover fraction of a step that still counts as on-grid
+  function gridFit(d, s0) {
+    let s = s0;
+    for (const M of [24, 400, 8000, 2e5, 1e7]) {
+      let num = 0, den = 0;
+      for (const x of d) { const n = Math.round(x / s); if (n >= 1 && n <= M) { num += n * x; den += n * n; } }
+      if (den) s = num / den;
+    }
+    let rr = 0, res = 0, nn = 0, k = 0;
+    for (const x of d) { const n = Math.round(x / s), f = x / s - n; rr += f * f; res += (x - n * s) ** 2; nn += n * n; k++; }
+    return { s, rms: Math.sqrt(rr / k), sd: k > 1 ? Math.sqrt(res / (k - 1) / nn) : 0 };
+  }
+  function gridFind(vals) {
+    const u = [...new Set(vals.filter(v => v != null && isFinite(v)))].sort((a, b) => a - b);
+    const out = { ok: false, distinct: u.length, step: null, best: null };
+    if (u.length < 6) { out.reason = 'few'; return out; }
+    const d = []; for (let i = 1; i < u.length; i++) d.push(u[i] - u[i - 1]);
+    const dmin = Math.min(...d);
+    let best = null;
+    for (let k = 1; k <= 12; k++) {
+      const small = d.filter(x => x <= 24 * dmin);
+      const f = gridFit(small, dmin / k);
+      if (!best || f.rms < best.rms) best = { ...f, k };
+      if (f.rms < GRID_TOL) {
+        const all = gridFit(d, f.s);
+        if (all.rms < GRID_TOL) { best = { ...all, k }; out.ok = true; break; }
+      }
+    }
+    out.best = best.s; out.rms = best.rms;
+    // float32 numbers sit on a grid of their own (2^-20 near 9.8). A step that small is the number
+    // format, not the sensor.
+    const big = Math.max(Math.abs(u[0]), Math.abs(u[u.length - 1])) || 1;
+    const ulp32 = 2 ** (Math.floor(Math.log2(big)) - 23);
+    if (out.ok && best.s < 64 * ulp32) out.ok = false;
+    if (!out.ok) { out.reason = 'nogrid'; return out; }
+    const s = best.s;
+    let sn = 0, cs = 0; for (const v of u) { const a = 2 * Math.PI * v / s; sn += Math.sin(a); cs += Math.cos(a); }
+    out.step = s; out.sd = best.sd;
+    out.phase = Math.atan2(sn, cs) / (2 * Math.PI);          // offset mod step, as a fraction of a step
+    out.span = Math.round((u[u.length - 1] - u[0]) / s);
+    // a browser that rounds to 0.1 (m/s² or °/s) puts everything on its own grid, the same for every phone
+    out.rounded = Math.abs(s / 0.1 - Math.round(s / 0.1)) < 1e-6 && Math.abs(out.phase) < 1e-4;
+    return out;
+  }
+
+  return { G0, NOMINAL, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -522,12 +606,108 @@ function drawGravity() {
     }
   });
 }
-const capView = register($('#cap'), {
-  tick() { if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); } },
-  resize() { drawCapture(); drawGravity(); },
+
+/* ================================================================
+   step 3: the grid
+   ================================================================ */
+const AXIS_NAME = ['accel x', 'accel y', 'accel z', 'gyro x', 'gyro y', 'gyro z'];
+let GRID = [], gridAxis = 0, gridAt = 0;
+function axisVals(i) { const v = []; for (const s of CAP.samples) if (s[i] != null) v.push(s[i]); return v; }
+function updateGrid() {
+  GRID = [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(axisVals(i)));
+  const rows = GRID.map((g, i) => {
+    const unit = i < 3 ? 'm/s²' : '°/s';
+    let st, cls;
+    if (!g.distinct) { st = 'no data'; cls = ''; }
+    else if (g.reason === 'few') { st = 'need more'; cls = 'fog'; }
+    else if (!g.ok) { st = 'no grid'; cls = 'bad'; }
+    else if (g.rounded) { st = 'browser 0.1'; cls = 'fog'; }
+    else { st = 'grid'; cls = 'ok'; }
+    const ppm = g.ok ? g.sd / g.step * 1e6 : null;
+    const per = g.ok ? (i < 3 ? (FP.G0 / g.step).toFixed(2) : (1 / g.step).toFixed(3)) : '—';
+    return `<tr><td>${AXIS_NAME[i]}</td><td class="${cls}">${st}</td><td>${g.ok ? g.step.toPrecision(7) + ' ' + unit : '—'}</td>` +
+      `<td class="wide">${per}</td><td class="wide">${ppm == null ? '—' : ppm < 0.001 ? '< 0.001' : ppm.toPrecision(2)}</td><td>${g.distinct || '—'}</td></tr>`;
+  });
+  $('#grid-tab').innerHTML = '<tr><th>axis</th><th>found</th><th>step</th><th class="wide">counts per g · °/s</th><th class="wide">± ppm</th><th>levels</th></tr>' + rows.join('');
+  const found = GRID.filter(g => g.ok && !g.rounded).length, rounded = GRID.filter(g => g.ok && g.rounded).length;
+  const nogrid = GRID.filter(g => g.reason === 'nogrid').length, have = GRID.filter(g => g.distinct).length;
+  const msg = [];
+  if (!have) msg.push('Capture some samples first.');
+  else {
+    if (found) msg.push(`<span class="ok">Grid found on ${found} of ${have} axes.</span> Those steps are this phone's calibration gains.`);
+    if (rounded) msg.push(`<span class="warn">${rounded} ax${rounded > 1 ? 'es sit' : 'is sits'} on a grid of exactly 0.1 with no offset.</span> That's the browser rounding every reading, the same grid for every phone, so it identifies nothing.`);
+    if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The values fall anywhere, as they would if noise were added after the counting.`);
+    if (GRID.some(g => g.reason === 'few')) msg.push('Some axes have too few distinct values yet; let the phone sit still a little longer, or move it.');
+  }
+  $('#grid-msg').innerHTML = msg.join(' ');
+  drawGrid();
+}
+function drawGrid() {
+  const cv = $('#grid-cv');
+  const { ctx, w, h } = fit(cv, 0.42, 230, 300);
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  const vals = axisVals(gridAxis), g = GRID[gridAxis];
+  const L = 14, R = w - 14, top = 24, midY = Math.round(h * 0.56), bot = h - 22;
+  ctx.font = font(10); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+  ctx.fillText(`${AXIS_NAME[gridAxis]}: raw values, zoomed in`, L, 15);
+  ctx.fillText('folded onto one step', L, midY + 18);
+  if (vals.length < 2 || !g) {
+    ctx.textAlign = 'center'; ctx.fillText('no samples yet', w / 2, h / 2); ctx.textAlign = 'left'; return;
+  }
+  // top: a window around the median, wide enough for ~24 grid steps (or 24 typical gaps)
+  const sorted = [...vals].sort((a, b) => a - b), med = sorted[sorted.length >> 1];
+  const s = g.ok ? g.step : (g.best || 1e-3);
+  let half = 12 * s;
+  if (!g.ok) {           // no grid to size the window by: use the spread of the readings near the median
+    const near = vals.filter(v => Math.abs(v - med) < 1), m = near.reduce((a, v) => a + v, 0) / near.length;
+    half = Math.max(1e-3, 3 * Math.sqrt(near.reduce((a, v) => a + (v - m) ** 2, 0) / near.length));
+  }
+  const lo = med - half, hi = med + half;
+  const NB = Math.max(48, Math.min(Math.floor((R - L) / 2), 24 * 10));
+  const bins = new Array(NB).fill(0);
+  for (const v of vals) if (v >= lo && v < hi) bins[Math.floor((v - lo) / (hi - lo) * NB)]++;
+  const mx = Math.max(1, ...bins), y1 = midY - 14, y0 = top + 4;
+  if (g.ok) {
+    ctx.strokeStyle = COL.grid2; ctx.lineWidth = 1;
+    const j0 = Math.ceil((lo / s) - g.phase), j1 = Math.floor((hi / s) - g.phase);
+    for (let j = j0; j <= j1; j++) {
+      const x = L + (R - L) * (((j + g.phase) * s) - lo) / (hi - lo);
+      ctx.beginPath(); ctx.moveTo(x, y1 + 2); ctx.lineTo(x, y1 + 6); ctx.stroke();
+    }
+  }
+  const bw = (R - L) / NB, barCol = g.ok ? (g.rounded ? COL.caution : COL.sig) : COL.fault;
+  ctx.fillStyle = barCol;
+  bins.forEach((c, k) => { if (c) { const bh = (y1 - y0) * c / mx; ctx.fillRect(L + k * bw, y1 - bh, Math.max(1, bw - 0.5), bh); } });
+  ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(L, y1 + 0.5); ctx.lineTo(R, y1 + 0.5); ctx.stroke();
+  ctx.fillStyle = COL.text; ctx.textAlign = 'right';
+  ctx.fillText(`${(hi - lo).toPrecision(3)} ${gridAxis < 3 ? 'm/s²' : '°/s'} wide`, R, 15);
+  // bottom: phase within one step
+  const NP = 33, ph = new Array(NP).fill(0);     // odd, so "on grid" is the middle bin
+  for (const v of vals) { let f = v / s - (g.ok ? g.phase : 0) + 0.5; f -= Math.floor(f); ph[Math.min(NP - 1, Math.floor(f * NP))]++; }
+  const pm = Math.max(1, ...ph), py0 = midY + 26, py1 = bot, pw = (R - L) / NP;
+  ctx.fillStyle = g.ok ? barCol : COL.text;
+  ph.forEach((c, k) => { const bh = (py1 - py0) * c / pm; ctx.fillRect(L + k * pw + 1, py1 - bh, pw - 2, bh); });
+  ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(L, py1 + 0.5); ctx.lineTo(R, py1 + 0.5); ctx.stroke();
+  ctx.fillStyle = COL.text; ctx.textAlign = 'left'; ctx.fillText('−½ step', L, h - 7);
+  ctx.textAlign = 'center'; ctx.fillText('on grid', (L + R) / 2, h - 7);
+  ctx.textAlign = 'right'; ctx.fillText('+½ step', R, h - 7); ctx.textAlign = 'left';
+}
+$('#grid-ax').addEventListener('click', e => {
+  const bt = e.target.closest('button'); if (!bt) return;
+  gridAxis = +bt.dataset.v;
+  for (const x of $('#grid-ax').children) x.classList.toggle('on', x === bt);
+  drawGrid();
 });
-io.observe($('#cap'));
-drawCapture(); updateGravity();
+const capView = register($('#cap'), {
+  tick() {
+    if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); CAP.gridDirty = true; }
+    const now = performance.now();
+    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); }
+  },
+  resize() { drawCapture(); drawGravity(); drawGrid(); },
+});
+capView.visible = true;   // the capture feeds every panel below, so it always runs
+drawCapture(); updateGravity(); updateGrid();
 </script>
 </body>
 </html>

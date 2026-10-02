@@ -50,6 +50,14 @@ QR version 3-H encoder/decoder). Lab pages may also load `../core.js` for the ca
 
 Each Lab page's build plan and status pill are the source of truth. As of October 2026: The Liar's Game (07),
 Traitors (08) and Tear-Proof Secrets (10) are **live**; Your Phone's Fingerprint (09) is **blueprint**.
+Next up: **Your Phone's Fingerprint (09)**, build plan step 1 (nothing built yet). Notes for it:
+
+- Headless Chromium has no motion sensors. Tests have to dispatch synthetic `devicemotion` events (values placed on a
+  per-axis lattice with a known gain and offset, plus noise) and check that the page recovers them. Say on the page and
+  here that real-phone testing (iOS permission prompt, Android) is still owed, as with Tear-Proof's camera.
+- The SensorID / calibration-fingerprinting work (Zhang, Beresford & Sheret, IEEE S&P 2019) is the source for the
+  GCD-over-differences trick and for Apple's iOS 12.2 fix. Read it before writing the prose and cite it.
+
 Known open items:
 
 - Liar's Game questioner (`LG.question`) searches exactly only below 24 live candidates (cost grows fast past that). It's
@@ -64,6 +72,9 @@ Known open items:
   and not taken up.
 
 ## Checking changes
+
+The Liar's Game tests (`tests/liar-*.mjs`) take a few minutes in total, because the million-number board games take
+~10 s each. They run past a 2-minute command timeout, so run them in the background.
 
 Existing checks live in `tests/` (see `tests/README.md`; `sh tests/run.sh` runs them all). Add a test file
 there for each new Lab page, alongside the build-plan step it checks.

@@ -143,13 +143,16 @@
     <div class="prose">
       <p>Inside the sensor, an analog-to-digital converter turns each reading into a whole number of
       counts. The phone then multiplies by a calibration gain measured for <em>this</em> unit at the
-      factory, adds an offset, and hands the result to the browser. So every value the page sees is
-      <code>gain × whole number + offset</code>. Zoom in far enough and the readings aren't continuous at all:
-      they sit on a grid whose spacing is the factory's gain.</p>
-      <p>Finding the spacing is a greatest-common-divisor problem with decimals. Sort the distinct values,
-      take the gaps between neighbours, and look for the largest step that every gap is a whole multiple
-      of. Noise from the physical sensor doesn't blur it, because that noise happens before the counting:
-      it moves a reading to a different grid point, never between two.</p>
+      factory, adds an offset, and hands the result to the browser. Strictly the gain is a 3×3 matrix,
+      because each axis also picks up a little of the other two. Either way, the change from one reading
+      to the next is <code>gain × whole number of counts</code>: the offset cancels, even if the browser lets
+      it drift. Zoom in on those changes and they aren't continuous at all. They sit on a grid whose
+      spacing is the factory's gain.</p>
+      <p>Finding the spacing is a greatest-common-divisor problem with decimals. The page follows the SensorID
+      paper: it guesses each axis's step from the spacing the changes cluster at, rounds every change to whole
+      counts, and refits the whole gain matrix by least squares, letting in bigger changes as the estimate
+      sharpens. Noise from the physical sensor doesn't blur the grid, because that noise happens before the
+      counting: it moves a reading to a different grid point, never between two.</p>
     </div>
     <div class="panel" id="grid">
       <div class="ctl">
@@ -160,10 +163,11 @@
       <div class="gwrap"><table class="gtab" id="grid-tab"></table></div>
       <div class="sinfo" id="grid-msg">Capture some samples first.</div>
     </div>
-    <p class="hint">Top: one axis's readings, zoomed in until single grid points show as spikes with empty
-    space between them. Bottom: every reading folded onto a single step (where it falls between two grid
-    lines). A grid shows as one tall spike; no grid shows as a flat spread. "Counts per g" is how many
-    grid steps make up standard gravity, a number set at the factory.</p>
+    <p class="hint">Top: how much one axis changes from one reading to the next, zoomed in until whole steps
+    show as spikes with empty space between them. Bottom: every non-zero change folded onto a single step
+    (where it falls between two whole steps). A grid shows as one tall spike; no grid shows as a flat
+    spread. "Counts per g" is how many steps make up standard gravity, a number set at the factory.
+    "Mixes in" is the largest share of another axis in this one's reading.</p>
   </div>
 </section>
 
@@ -204,8 +208,9 @@
     <p class="hint"><b>Bits, at most</b> assumes each gain could fall anywhere in a ±1% band with every
     20&nbsp;ppm slice equally likely: log₂(2% ÷ 20&nbsp;ppm) ≈ 10 bits per axis. Real gains aren't spread
     that evenly, and the axes of one chip may not vary independently, so treat it as a ceiling, not a
-    measurement. The SensorID authors measured real iPhones instead: about 67 bits for the iPhone 6S, from
-    its gyroscope and magnetometer.</p>
+    measurement. The SensorID authors measured real ones instead. In 127 iPhone 6S gyroscopes, each axis's
+    gain carried only about 5 bits; the cross-axis terms, which this page's ID leaves out, carried 6.5 to 7
+    bits each, for about 42 bits from the gyroscope and about 67 with the magnetometer added.</p>
   </div>
 </section>
 
@@ -213,15 +218,18 @@
   <div class="wrap">
     <h2>The fix</h2>
     <div class="prose">
-      <p>The GCD trick needs every gap between readings to be an <em>exact</em> whole number of steps. So
-      the cure is to break that exactness. Add a random amount of up to half a step to each count before the
-      calibration is applied, and a reading can land anywhere in its cell instead of on a grid point. The
-      gaps stop being whole multiples of anything, and the grid search comes back empty. The SensorID authors
-      proposed exactly this kind of noise, and Apple added random noise in iOS 12.2. Apple's own security
-      note says only that the issue "was addressed with improved motion sensor processing" (CVE-2019-8541).</p>
-      <p>Browsers took a blunter route. The W3C DeviceOrientation spec now requires readings to be limited to
-      0.1&nbsp;m/s² and 0.1&nbsp;°/s, and Chromium rounds them to those multiples, citing exactly this
-      attack in its source. That puts every phone on the same grid, the browser's.</p>
+      <p>The GCD trick needs every change between readings to be an <em>exact</em> whole number of counts. So
+      the cure is to break that exactness. The SensorID authors proposed adding random noise, spread evenly
+      between −½ and +½ count, to each count before the calibration is applied: a reading can then land anywhere
+      in its cell instead of on a grid point, the changes stop being whole multiples of anything, and the grid
+      search comes back empty. They report that Apple adopted it in iOS 12.2 and also turned off Safari's
+      motion access by default. Apple's own security note says only that the issue "was addressed with
+      improved motion sensor processing" (CVE-2019-8541).</p>
+      <p>Their second suggestion suits browsers, which don't know the gain: round each reading to a multiple
+      of the sensor's nominal step. Browsers took a blunter version. The W3C DeviceOrientation spec now
+      requires readings to be limited to 0.1&nbsp;m/s² and 0.1&nbsp;°/s, and Chromium rounds them to those
+      multiples, citing exactly this attack in its source. That puts every phone on the same grid, the
+      browser's.</p>
       <p>Neither costs ordinary motion features much. Walking swings the accelerometer by a few m/s² each
       step. On the simulated phone here, half a grid step is about 0.001&nbsp;m/s², under a thousandth of that,
       and even rounding to 0.1 moves a reading by at most 0.05.
@@ -243,17 +251,17 @@
     <p class="hint">The switch changes the readings this page analyses, so the grid and fingerprint panels above
     follow it. It can't undo anything your own browser or phone already did: if your capture shows no grid with
     the switch on <b>as delivered</b>, a defense was already there. The walk is simulated with the same phone
-    as the capture (or a stock one), 36 steps in 20 seconds. How much noise Apple actually adds isn't public;
-    half a step is this page's choice, about the least that hides the grid.</p>
+    as the capture (or a stock one), 36 steps in 20 seconds. The noise is the paper's suggestion, up to half a
+    count either way; how much Apple actually adds isn't published.</p>
     <div class="try">
       <h3>Try this</h3>
       <ol>
         <li>Press <b>Simulate a phone</b>, wait for the fingerprint, press <b>Keep this one</b>, then
         <b>Same simulated phone again</b>. Fresh noise, every reading different, same ID. Now try
         <b>Another simulated phone</b>.</li>
-        <li>Look at the raw log during a simulation. The digits look like noise, yet every difference between two
-        readings on an axis is a whole number of that axis's step. Pick an axis in <b>The grid</b> and watch the
-        fold collapse into one spike.</li>
+        <li>Look at the raw log during a simulation. The digits look like noise, yet the change between two
+        readings on an axis is a whole number of that axis's step, give or take the sliver of the other two axes
+        it mixes in. Pick an axis in <b>The grid</b> and watch the fold collapse into one spike.</li>
         <li>Switch the defense to <b>+ noise</b>. The spikes melt into a smooth hump, the fold goes flat, and the
         fingerprint disappears. The walk still counts 36 steps.</li>
         <li>Switch to <b>round to 0.1</b>. A grid comes back on every axis, but it's 0.1 exactly, 98.07 counts per g,
@@ -278,8 +286,8 @@
       every unit and never changes. Accuracy needs the correction to be applied; privacy needs nobody to be able
       to read it back. The grid trick reads it back.</p>
       <p><strong>Why the grid gives so much away.</strong> Gravity can only tell you a gain to a fraction of a
-      percent: your latitude alone shifts it by up to about 0.3%. The grid doesn't depend on gravity at all. Every gap
-      between two readings is an exact whole number of steps, so a few hundred readings pin the step far more
+      percent: your latitude alone shifts it by up to about 0.3%. The grid doesn't depend on gravity at all. Every change
+      between two readings is an exact whole number of counts, so a few hundred readings pin the step far more
       tightly than gravity can, and the answer comes out the same every time. That
       combination, precise and repeatable, is what makes an identifier. A slow drift in the offset, by contrast, is
       useless for tracking, because it doesn't repeat.</p>
@@ -297,11 +305,14 @@
       because it's hardware: it survives clearing cookies, private windows and a factory reset. The fix had to
       come from the platform (Apple's noise, the browsers' rounding and permission prompts), because no page
       can protect you from another page.</p>
-      <p><strong>What this page can't see.</strong> The SensorID fingerprint for iPhones came from the gyroscope
-      and the magnetometer. <code>devicemotion</code> doesn't include the magnetometer, so this page uses the
-      accelerometer and gyroscope instead. Real calibrations can also mix a little of one axis into another; this
-      page's grid search assumes each axis is scaled on its own, so a phone that mixes axes would show no clean
-      grid here even without a defense.</p>
+      <p><strong>What this page can and can't see.</strong> The SensorID fingerprint for iPhones came from the
+      gyroscope and the magnetometer. The authors found their method didn't directly apply to the iPhone's
+      accelerometer, and <code>devicemotion</code> doesn't include the magnetometer at all, so on an iPhone the
+      gyroscope is the part that matters. This page tries the accelerometer too, which the authors could
+      fingerprint on the Google Pixel 2 and 3. Like the paper, it recovers each sensor's full gain matrix, so axes
+      that mix are fine. It skips the paper's last trick: on iPhones with an M-series motion coprocessor the
+      matrix entries are whole multiples of 2<sup>−16</sup>&nbsp;°/s, which let the authors round a slightly blurred
+      estimate (Safari's offset drifted) back to the exact values.</p>
       <p><strong>What to expect on your phone.</strong> If the sources below are right, a current Chromium-based
       browser should show the browser's 0.1 grid, and an iPhone on iOS 12.2 or later shouldn't show a grid of its own. A grid of your
       phone's own would mean neither defense reached this page. None of this has been tried on a real phone yet:
@@ -331,25 +342,34 @@
     <h2>The deep cut</h2>
     <div class="deep">
       <p>Zhang, Beresford, and Sheret presented SensorID at IEEE Security &amp; Privacy in 2019. From fewer
-      than 100 motion samples, collected and processed in under a second, they could build a fingerprint that
-      didn't change over time or after a factory reset. On iOS it combined the gyroscope and the magnetometer,
-      both calibrated per device at the factory; from data on 870 iOS devices they estimated about 67 bits of
-      entropy for the iPhone 6S. The accelerometers of the Google Pixel 2 and Pixel 3 could be fingerprinted
-      the same way, though with less entropy.</p>
-      <p>Their suggested fix was to add uniformly distributed random noise to the ADC outputs before the
-      calibration is applied. Apple shipped a fix in iOS 12.2 (CVE-2019-8541), described by the authors as adding
-      random noise; the same release turned off Safari's motion access by default, and iOS 13 replaced that with
-      the <code>requestPermission()</code> prompt this page uses. The W3C spec now requires both a permission
-      step and readings limited to 0.1&nbsp;m/s² and 0.1&nbsp;°/s.</p>
-      <p>The broader idea is older. In 2014 Bojinov, Michalevsky, Nakibly and Boneh measured more than 10,000
-      phones and showed that accelerometer calibration errors, readable from JavaScript without any permission,
-      could identify a device. Manufacturing tolerances that engineers calibrate away for accuracy are exactly
-      what make each unit distinguishable.</p>
+      than 100 motion samples, collected and processed in under a second, they recovered a fingerprint that
+      didn't change over half a year, after a factory reset, or after an iOS update. On iPhones it came from the
+      gyroscope and the magnetometer, both calibrated per device at the factory; a Samsung Galaxy S8's gyroscope,
+      by contrast, wasn't. All 870 iOS devices in their data had distinct gyroscope fingerprints, and for the
+      iPhone 6S they estimated about 42 bits from the gyroscope and at least 25 from the magnetometer, about 67
+      in all. The accelerometers of the Google Pixel 2 and 3 showed per-device calibration too, but with only a
+      few Pixels they couldn't say how unique it was. Most other Android phones, they thought, calibrate only
+      offsets, which this attack can't recover.</p>
+      <p>Their fixes were the two on this page: noise of up to half a count added before calibration, or
+      readings rounded to a multiple of the sensor's nominal step. They report that Apple adopted the noise in
+      iOS 12.2 (CVE-2019-8541) and turned off Safari's motion access by default; iOS 13 replaced that with the
+      <code>requestPermission()</code> prompt this page uses. Google, told in December 2018, was still
+      investigating when the paper came out. They also noted, citing Das et al., that 2,653 of the 100,000 most
+      visited websites read motion sensors and some already sent the data to their servers, so a fingerprint
+      could be computed after the fact. The W3C spec now requires a permission step and readings limited to
+      0.1&nbsp;m/s² and 0.1&nbsp;°/s.</p>
+      <p>Earlier work had tried motion sensors as fingerprints by learning their statistical quirks. Bojinov,
+      Michalevsky, Nakibly and Boneh (2014) measured the accelerometers of more than 10,000 phones through
+      JavaScript, but by SensorID's account identified only 53% of devices even with the browser's user-agent
+      string added. Reading the calibration itself, rather than its side effects, is what made SensorID exact.
+      Manufacturing tolerances that engineers calibrate away for accuracy are exactly what make each unit
+      distinguishable.</p>
     </div>
     <h3>Reading</h3>
     <ul class="refs">
       <li>J. Zhang, A. R. Beresford &amp; I. Sheret, “SensorID: Sensor calibration fingerprinting for smartphones,” IEEE Symposium on Security and Privacy, 2019. doi:10.1109/SP.2019.00072.</li>
       <li>H. Bojinov, Y. Michalevsky, G. Nakibly &amp; D. Boneh, “Mobile device identification via sensor fingerprinting,” arXiv:1408.1416, 2014.</li>
+      <li>A. Das, G. Acar, N. Borisov &amp; A. Pradeep, “The web's sixth sense: a study of scripts accessing smartphone sensors,” ACM CCS, 2018.</li>
       <li>Apple, “About the security content of iOS 12.2” (CVE-2019-8541: “A privacy issue existed in motion sensor calibration”), 2019.</li>
       <li>W3C, <i>DeviceOrientation Event Specification</i>: security and privacy considerations, and the 0.1&nbsp;m/s² and 0.1&nbsp;°/s precision limits.</li>
       <li>Chromium source, <code>services/device/generic_sensor/platform_sensor_util.h</code>: the rounding multiples and the comment explaining them (crbug.com/1018180).</li>
@@ -373,8 +393,10 @@ const FP = (() => {
   function gaussR(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
 
   /* ---- a made-up phone. Each axis: the ADC counts A = round(S·true + B + noise) with a true
-     sensitivity S and raw bias B; the factory calibration then reports G·A + o. G and o are the
-     per-device constants a page can try to recover. Six axes: accel x,y,z (m/s²), gyro x,y,z (°/s). */
+     sensitivity S and raw bias B; the factory calibration then reports G·A + o, plus a little of the
+     sensor's other two axes (cross terms up to ±0.5% of the step; SensorID's iPhone XS gyroscope had up to
+     ~0.9%). The gyroscope's offset also wanders slowly, as SensorID saw in Safari. G, the cross terms and o
+     are the per-device constants a page can try to recover. Axes: accel x,y,z (m/s²), gyro x,y,z (°/s). */
   const NOMINAL = [G0 / 4096, G0 / 4096, G0 / 4096, 1 / 16.4, 1 / 16.4, 1 / 16.4];
   function makePhone(seed) {
     const r = rng(seed), u = (a) => (2 * r() - 1) * a;
@@ -388,14 +410,18 @@ const FP = (() => {
       const o = bias - G * B;
       return { G, S, B, o, scaleErr, bias, sigma: acc ? 1.2 : 1.5 };
     });
-    return { seed, axes };
+    const mix = [0, 1, 2, 3, 4, 5].map(i => [0, 1, 2].map(j => i % 3 === j ? 0 : u(0.005)));
+    return { seed, axes, mix, drift: [0, 0, 0] };
   }
   // one sample for true acceleration a[3] (m/s², gravity included) and rotation w[3] (°/s)
   function phoneSample(ph, a, w, r) {
+    const A = ph.axes.map((ax, i) => Math.round(ax.S * (i < 3 ? a[i] : w[i - 3]) + ax.B + ax.sigma * gaussR(r)));
     return ph.axes.map((ax, i) => {
-      const t = i < 3 ? a[i] : w[i - 3];
-      const A = Math.round(ax.S * t + ax.B + ax.sigma * gaussR(r));
-      return ax.G * A + ax.o;
+      const b = i < 3 ? 0 : 3;
+      let v = ax.G * A[i] + ax.o;
+      for (let j = 0; j < 3; j++) if (b + j !== i) v += ph.mix[i][j] * ax.G * (A[b + j] - Math.round(ph.axes[b + j].B));
+      if (i >= 3) { ph.drift[i - 3] += 2e-5 * gaussR(r); v += ph.drift[i - 3]; }
+      return v;
     });
   }
   // the six faces, as true gravity vectors; a scripted capture visits them in turn
@@ -458,52 +484,164 @@ const FP = (() => {
     return { acc, gyro };
   }
 
-  /* ---- grid recovery: the largest step that every gap between distinct values is a whole multiple of.
-     Small gaps fix the step first; larger gaps are let in as the estimate gets good enough to count them. */
-  const GRID_TOL = 0.05;     // rms of the leftover fraction of a step that still counts as on-grid
-  function gridFit(d, s0) {
-    let s = s0;
-    for (const M of [24, 400, 8000, 2e5, 1e7]) {
-      let num = 0, den = 0;
-      for (const x of d) { const n = Math.round(x / s); if (n >= 1 && n <= M) { num += n * x; den += n * n; } }
-      if (den) s = num / den;
-    }
-    let rr = 0, res = 0, nn = 0, k = 0;
-    for (const x of d) { const n = Math.round(x / s), f = x / s - n; rr += f * f; res += (x - n * s) ** 2; nn += n * n; k++; }
-    // sd: the least-squares error, ×3 because float32 rounding errors in neighbouring gaps are correlated
-    return { s, rms: Math.sqrt(rr / k), sd: k > 1 ? 3 * Math.sqrt(res / (k - 1) / nn) : 0 };
+  /* ---- grid recovery, after SensorID (Zhang, Beresford & Sheret, IEEE S&P 2019, §III-D).
+     A sensor reports O = G·A + B: whole-number ADC counts A, a 3×3 gain matrix G (each axis's step on the
+     diagonal, a little of the other axes mixed in off it) and an offset B that a browser may let drift.
+     Consecutive differences cancel the offset, ΔO = G·ΔA, and sorting those and differencing again (ΔΔO) adds
+     more small ones. A first guess at each step comes from the largest spacing that the differences are
+     near-whole multiples of; then, as in the paper's "improved approach", ΔA = round(G⁻¹·ΔO) is recovered
+     from batches of growing size, trusting only near-whole roundings, and G is re-fitted by least squares. */
+  const GAMMA = 0.1;       // largest rounding error that still counts as a whole number of counts (the paper's Γ)
+  const NMIN = 12;         // fewest non-trivial differences worth a verdict
+  const ulp32 = v => 2 ** (Math.floor(Math.log2(Math.abs(v) || 1)) - 23);
+  function diffs3(S) {
+    const D = [];
+    for (let k = 1; k < S.length; k++) D.push([S[k][0] - S[k - 1][0], S[k][1] - S[k - 1][1], S[k][2] - S[k - 1][2]]);
+    return D;
   }
-  function gridFind(vals) {
-    const u = [...new Set(vals.filter(v => v != null && isFinite(v)))].sort((a, b) => a - b);
-    const out = { ok: false, distinct: u.length, step: null, best: null };
-    if (u.length < 6) { out.reason = 'few'; return out; }
-    const d = []; for (let i = 1; i < u.length; i++) d.push(u[i] - u[i - 1]);
-    const dmin = Math.min(...d);
-    let best = null;
-    for (let k = 1; k <= 12; k++) {
-      const small = d.filter(x => x <= 24 * dmin);
-      const f = gridFit(small, dmin / k);
-      if (!best || f.rms < best.rms) best = { ...f, k };
-      if (f.rms < GRID_TOL) {
-        const all = gridFit(d, f.s);
-        if (all.rms < GRID_TOL) { best = { ...all, k }; out.ok = true; break; }
+  function augment(D) {
+    const out = D.slice();
+    for (let i = 0; i < 3; i++) {
+      const s = [...D].sort((p, q) => p[i] - q[i]);
+      for (let k = 1; k < s.length; k++) out.push([s[k][0] - s[k - 1][0], s[k][1] - s[k - 1][1], s[k][2] - s[k - 1][2]]);
+    }
+    return out;
+  }
+  // the largest spacing s that the values (≥ s/2, ≤ 12.5 s) sit at near-whole multiples of
+  function stepGuess(vals, floor) {
+    const v = vals.map(Math.abs).filter(x => x > 0 && isFinite(x)).sort((p, q) => p - q);
+    if (v.length < NMIN) return null;
+    const sub = []; const st = Math.max(1, Math.floor(v.length / 500));
+    for (let k = 0; k < v.length; k += st) sub.push(v[k]);
+    const score = s => {
+      let c = 0, n = 0;
+      for (const x of sub) { const m = x / s; if (m >= 0.5 && m <= 12.5) { c += Math.cos(2 * Math.PI * m); n++; } }
+      return n >= Math.min(NMIN, sub.length) ? c / n : -1;
+    };
+    // share of the values (≥ s/2) that sit within Γ of a whole multiple of s
+    const fits = s => { let k = 0; for (const x of v) { const m = x / s; if (m >= 0.5 && Math.abs(m - Math.round(m)) < GAMMA) k++; } return k; };
+    const hi = 2 * v[v.length - NMIN], lo = Math.max(hi * 1e-7, 64 * floor);
+    for (let s = hi; s > lo; s *= 0.995) {
+      if (score(s) > 0.8) {                                   // climb to the top of this peak
+        let best = s, bs = score(s);
+        for (let t = s * 0.9995; t > s * 0.985; t *= 0.9995) { const c = score(t); if (c > bs) { bs = c; best = t; } }
+        // a multiple of the true step can pass if most differences happen to be even. Every multiple of s is
+        // also a multiple of s/2, so if s/2 (or s/3) explains a few more differences, those are real odd steps
+        for (let again = true; again;) {
+          again = false;
+          for (const k of [2, 3]) if (best / k > lo && fits(best / k) - fits(best) >= Math.max(3, 0.005 * v.length)) { best /= k; again = true; break; }
+        }
+        return best;
       }
     }
-    out.best = best.s; out.rms = best.rms;
-    // float32 numbers sit on a grid of their own (2^-20 near 9.8). A step that small is the number
-    // format, not the sensor.
-    const big = Math.max(Math.abs(u[0]), Math.abs(u[u.length - 1])) || 1;
-    const ulp32 = 2 ** (Math.floor(Math.log2(big)) - 23);
-    if (out.ok && best.s < 64 * ulp32) out.ok = false;
-    if (!out.ok) { out.reason = 'nogrid'; return out; }
-    const s = best.s;
-    let sn = 0, cs = 0; for (const v of u) { const a = 2 * Math.PI * v / s; sn += Math.sin(a); cs += Math.cos(a); }
-    out.step = s; out.sd = best.sd;
-    out.phase = Math.atan2(sn, cs) / (2 * Math.PI);          // offset mod step, as a fraction of a step
-    out.span = Math.round((u[u.length - 1] - u[0]) / s);
-    // a browser that rounds to 0.1 (m/s² or °/s) puts everything on its own grid, the same for every phone
-    out.rounded = Math.abs(s / 0.1 - Math.round(s / 0.1)) < 1e-6 && Math.abs(out.phase) < 1e-4;
+    return null;
+  }
+  function inv3(m) {
+    const [a, b, c] = m[0], [d, e, f] = m[1], [g, h, i] = m[2];
+    const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+    if (!det) return null;
+    return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+            [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+            [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
+  }
+  // round G⁻¹·ΔO to whole counts; keep the rows where every axis rounds cleanly
+  function recover(rows, G) {
+    const Gi = inv3(G), A = [], O = [];
+    if (!Gi) return { A, O };
+    for (const d of rows) {
+      const a = [0, 1, 2].map(i => Gi[i][0] * d[0] + Gi[i][1] * d[1] + Gi[i][2] * d[2]);
+      const r = a.map(Math.round);
+      if (r.every(x => x === 0)) continue;
+      if (Math.max(...a.map((x, i) => Math.abs(x - r[i]))) < GAMMA) { A.push(r); O.push(d); }
+    }
+    return { A, O };
+  }
+  // least-squares G from O = G·A, over the axes that actually moved
+  function fitG(A, O, G0) {
+    const act = [0, 1, 2].filter(j => A.some(a => a[j] !== 0));
+    const G = G0.map(r => r.slice()), sd = [0, 0, 0];
+    if (!act.length || A.length < act.length + 2) return { G, sd };
+    const k = act.length, M = act.map(() => new Array(k).fill(0));
+    for (const a of A) for (let p = 0; p < k; p++) for (let q = 0; q < k; q++) M[p][q] += a[act[p]] * a[act[q]];
+    const Mi = k === 3 ? inv3(M) : k === 2 ? (() => { const det = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+      return det ? [[M[1][1] / det, -M[0][1] / det], [-M[1][0] / det, M[0][0] / det]] : null; })() : [[1 / M[0][0]]];
+    if (!Mi) return { G, sd };
+    for (let i = 0; i < 3; i++) {
+      const bvec = act.map(j => A.reduce((s, a, n) => s + a[j] * O[n][i], 0));
+      act.forEach((j, p) => { G[i][j] = act.reduce((s, _, q) => s + Mi[p][q] * bvec[q], 0); });
+      let rss = 0;
+      A.forEach((a, n) => { rss += (O[n][i] - (G[i][0] * a[0] + G[i][1] * a[1] + G[i][2] * a[2])) ** 2; });
+      const p = act.indexOf(i);
+      // ×3: float32 rounding errors in neighbouring differences are correlated, so be conservative
+      if (p >= 0) sd[i] = 3 * Math.sqrt(rss / Math.max(1, A.length - k) * Mi[p][p]);
+    }
+    return { G, sd };
+  }
+  // one three-axis sensor: S is a time-ordered list of [x, y, z]
+  function gridSensor(S) {
+    const out = { ok: false, G: null };
+    const levels = [0, 1, 2].map(i => new Set(S.map(s => s[i])).size);
+    const floor = Math.max(...S.flat().map(ulp32), 0);
+    const per = (i, extra) => ({ ok: false, step: null, distinct: levels[i], ...extra });
+    if (S.length < NMIN + 1) { out.axes = [0, 1, 2].map(i => per(i, { reason: 'few' })); return out; }
+    const D = diffs3(S), P = augment(D);
+    const guess = [0, 1, 2].map(i => stepGuess(P.map(d => d[i]), floor));
+    const moved = [0, 1, 2].map(i => P.filter(d => Math.abs(d[i]) > 0).length);
+    const nontriv = [0, 1, 2].map(i => guess[i] ? P.filter(d => Math.abs(d[i]) >= guess[i] / 2).length : 0);
+    if (guess.some(g => !g)) {
+      out.axes = [0, 1, 2].map(i => per(i, { reason: moved[i] < NMIN ? 'few' : 'nogrid' }));
+      return out;
+    }
+    let G = [[guess[0], 0, 0], [0, guess[1], 0], [0, 0, guess[2]]], sd = [0, 0, 0];
+    const scaled = P.map(d => Math.max(...d.map((x, i) => Math.abs(x) / guess[i])));
+    const maxS = Math.max(...scaled);
+    // batches: |ΔO| below (ε + ½) steps, ε = 1, 2, 4… A batch is only taken on if the current estimate is
+    // precise enough to round its largest differences correctly; otherwise a wrongly rounded big difference
+    // can look clean and drag the fit (a drifting offset limits precision this way)
+    let limit = 1.5;
+    const sharpEnough = lim => Math.max(...sd.map((e, i) => e / Math.abs(G[i][i]))) * lim * 6 < GAMMA;
+    for (let eps = 1; ; eps *= 2) {
+      const rows = P.filter((d, k) => scaled[k] < eps + 0.5);
+      const R = recover(rows, G);
+      if (R.A.length >= NMIN) ({ G, sd } = fitG(R.A, R.O, G));
+      limit = eps + 0.5;
+      if (limit > maxS || eps > 1 << 24 || !sharpEnough(2 * eps + 0.5)) break;
+    }
+    const inRange = P.filter((d, k) => scaled[k] < limit);
+    // a last refit on every difference in range that rounds cleanly
+    for (let k = 0; k < 2; k++) { const R0 = recover(inRange, G); if (R0.A.length >= NMIN) ({ G, sd } = fitG(R0.A, R0.O, G)); }
+    // float32 inputs (every value exactly a float32, as Android's are) round each reading by up to half an ulp,
+    // an error the fit can absorb into a slightly wrong step without leaving residuals; floor the ± at that
+    const f32 = S.every(s => s.every(x => Math.fround(x) === x));
+    const spanA = [0, 1, 2].map(i => { const c = S.map(s => s[i]); return (Math.max(...c) - Math.min(...c)) / Math.abs(G[i][i]); });
+    const ulpTop = f32 ? floor : Math.max(...S.flat().map(x => Math.abs(x))) * 2 ** -52;
+    sd = sd.map((e, i) => Math.max(e, 2 * ulpTop / Math.max(1, spanA[i])));
+    // validity: most non-trivial differences must round cleanly, and the fit must leave only tiny residuals
+    const R = recover(inRange, G);
+    const big = P.filter((d, k) => scaled[k] >= 0.5 && scaled[k] < limit).length;
+    const res = [0, 1, 2].map(i => {
+      let s2 = 0; R.A.forEach((a, n) => { s2 += (R.O[n][i] - (G[i][0] * a[0] + G[i][1] * a[1] + G[i][2] * a[2])) ** 2; });
+      return R.A.length ? Math.sqrt(s2 / R.A.length) : Infinity;
+    });
+    const valid = R.A.length >= NMIN && R.A.length >= 0.6 * big && res.every((e, i) => e < 0.05 * Math.abs(G[i][i]));
+    out.ok = valid; out.G = G; out.trusted = R.A.length; out.nontrivial = big;
+    out.axes = [0, 1, 2].map(i => {
+      const step = G[i][i];
+      if (!valid) return per(i, { reason: 'nogrid' });
+      if (nontriv[i] < NMIN || !R.A.some(a => a[i] !== 0) || step < 64 * floor) return per(i, { reason: 'few' });
+      const mix = [0, 1, 2].filter(j => j !== i).map(j => G[i][j] / step);
+      // a browser that rounds to 0.1 (m/s² or °/s) puts every phone on the same grid: 0.1, no mixing
+      const rounded = Math.abs(step / 0.1 - Math.round(step / 0.1)) < 1e-6 && mix.every(m => Math.abs(m) < 1e-9);
+      return { ok: true, step, sd: sd[i], mix, rounded, distinct: levels[i] };
+    });
     return out;
+  }
+  // all six axes from a capture: accel triple and gyro triple, each from samples where all three are present
+  function gridAll(S) {
+    const acc = gridSensor(S.filter(s => s[0] != null && s[1] != null && s[2] != null).map(s => [s[0], s[1], s[2]]));
+    const gy = gridSensor(S.filter(s => s[3] != null && s[4] != null && s[5] != null).map(s => [s[3], s[4], s[5]]));
+    const none = { ok: false, step: null, distinct: 0 };
+    return [...acc.axes, ...(S.some(s => s[3] != null) ? gy.axes : [none, none, none])].map((g, i) => ({ ...g, sensor: i < 3 ? acc : gy }));
   }
 
   /* ---- fingerprint: each step rounded to a 20 ppm slice of its logarithm, then hashed */
@@ -540,8 +678,8 @@ const FP = (() => {
      'noise': uniform noise of up to half a grid step, as if added to the ADC counts before calibration.
      'round': every reading rounded to a multiple of 0.1, as the W3C spec and Chromium do. */
   function defend(vals, mode, step, seed) {
-    if (mode === 'noise') { const r = rng(seed); return vals.map(v => v + step * (r() - 0.5)); }
-    if (mode === 'round') return vals.map(v => Math.round(v / 0.1) * 0.1);
+    if (mode === 'noise') { const r = rng(seed); return vals.map(v => v == null ? v : v + step * (r() - 0.5)); }
+    if (mode === 'round') return vals.map(v => v == null ? v : Math.round(v / 0.1) * 0.1);
     return vals;
   }
   /* ---- a 20-second walk at 1.8 steps a second (36 steps), phone held upright, 60 samples a second */
@@ -571,7 +709,7 @@ const FP = (() => {
     return { marks, mag: m, smooth: sm, mean };
   }
 
-  return { G0, NOMINAL, defend, walk, countSteps, WALK_HZ, WALK_S, WALK_RATE, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridFind, GRID_TOL, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  return { G0, NOMINAL, defend, walk, countSteps, WALK_HZ, WALK_S, WALK_RATE, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridAll, gridSensor, GAMMA, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -823,13 +961,27 @@ function drawGravity() {
    ================================================================ */
 const AXIS_NAME = ['accel x', 'accel y', 'accel z', 'gyro x', 'gyro y', 'gyro z'];
 let GRID = [], REF = [], gridAxis = 0, gridAt = 0, DEFENSE = 'none';
-function rawVals(i) { const v = []; for (const s of CAP.samples) if (s[i] != null) v.push(s[i]); return v; }
 // the step a defense's noise is sized by: the undefended grid if there is one, else a typical sensor's
 function refStep(i) { return REF[i] && REF[i].ok && !REF[i].rounded ? REF[i].step : FP.NOMINAL[i]; }
-function axisVals(i) { return FP.defend(rawVals(i), DEFENSE, refStep(i), 1000 + i); }
+// the capture as the analysis sees it: each axis passed through the selected defense
+// the grid search looks at the most recent 3000 samples (50 s at 60 Hz), which keeps it well under a second
+const GRID_MAX = 3000;
+let DEF_SAMPLES = null, defKey = '', refKey = '';
+const capKey = () => CAP.samples.length + '|' + (CAP.samples[CAP.samples.length - 1] || []).join();
+function recent() { return CAP.samples.length > GRID_MAX ? CAP.samples.slice(-GRID_MAX) : CAP.samples; }
+function analysed() {
+  if (DEFENSE === 'none') return recent();
+  const key = DEFENSE + '|' + capKey();
+  if (key !== defKey) {
+    defKey = key;
+    const S = recent(), cols = [0, 1, 2, 3, 4, 5].map(i => FP.defend(S.map(s => s[i]), DEFENSE, refStep(i), 1000 + i));
+    DEF_SAMPLES = S.map((_, k) => cols.map(c => c[k]));
+  }
+  return DEF_SAMPLES;
+}
 function updateGrid() {
-  REF = [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(rawVals(i)));
-  GRID = DEFENSE === 'none' ? REF : [0, 1, 2, 3, 4, 5].map(i => FP.gridFind(axisVals(i)));
+  if (capKey() !== refKey) { refKey = capKey(); REF = FP.gridAll(recent()); }
+  GRID = DEFENSE === 'none' ? REF : FP.gridAll(analysed());
   const rows = GRID.map((g, i) => {
     const unit = i < 3 ? 'm/s²' : '°/s';
     let st, cls;
@@ -840,10 +992,12 @@ function updateGrid() {
     else { st = 'grid'; cls = 'ok'; }
     const ppm = g.ok ? g.sd / g.step * 1e6 : null;
     const per = g.ok ? (i < 3 ? (FP.G0 / g.step).toFixed(2) : (1 / g.step).toFixed(3)) : '—';
+    const mix = g.ok ? Math.max(...g.mix.map(Math.abs)) * 100 : null;
     return `<tr><td>${AXIS_NAME[i]}</td><td class="${cls}">${st}</td><td>${g.ok ? g.step.toPrecision(7) + ' ' + unit : '—'}</td>` +
-      `<td class="wide">${per}</td><td class="wide">${ppm == null ? '—' : ppm < 0.001 ? '< 0.001' : ppm.toPrecision(2)}</td><td>${g.distinct || '—'}</td></tr>`;
+      `<td class="wide">${per}</td><td class="wide">${mix == null ? '—' : mix < 0.001 ? '0' : mix.toFixed(2) + '%'}</td>` +
+      `<td class="wide">${ppm == null ? '—' : ppm < 0.001 ? '< 0.001' : ppm.toPrecision(2)}</td></tr>`;
   });
-  $('#grid-tab').innerHTML = '<tr><th>axis</th><th>found</th><th>step</th><th class="wide">counts per g · °/s</th><th class="wide">± ppm</th><th>levels</th></tr>' + rows.join('');
+  $('#grid-tab').innerHTML = '<tr><th>axis</th><th>found</th><th>step</th><th class="wide">counts per g · °/s</th><th class="wide">mixes in</th><th class="wide">± ppm</th></tr>' + rows.join('');
   const found = GRID.filter(g => g.ok && !g.rounded).length, rounded = GRID.filter(g => g.ok && g.rounded).length;
   const nogrid = GRID.filter(g => g.reason === 'nogrid').length, have = GRID.filter(g => g.distinct).length;
   const msg = [];
@@ -851,9 +1005,9 @@ function updateGrid() {
   else {
     if (DEFENSE !== 'none') msg.push(`<span class="warn">Defense on (${DEFENSE === 'noise' ? 'noise' : 'rounding to 0.1'}): see below.</span>`);
     if (found) msg.push(`<span class="ok">Grid found on ${found} of ${have} axes.</span> Those steps are this phone's calibration gains.`);
-    if (rounded) msg.push(`<span class="warn">${rounded} ax${rounded > 1 ? 'es sit' : 'is sits'} on a grid of exactly 0.1 with no offset.</span> That's the browser rounding every reading, the same grid for every phone, so it identifies nothing.`);
-    if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The values fall anywhere, as they would if noise were added after the counting.`);
-    if (GRID.some(g => g.reason === 'few')) msg.push('Some axes have too few distinct values yet; let the phone sit still a little longer, or move it.');
+    if (rounded) msg.push(`<span class="warn">${rounded} ax${rounded > 1 ? 'es sit' : 'is sits'} on a grid of exactly 0.1.</span> That's the browser rounding every reading, the same grid for every phone, so it identifies nothing.`);
+    if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The changes between readings aren't whole steps, which is what noise added before the calibration looks like.`);
+    if (GRID.some(g => g.reason === 'few')) msg.push('Some axes have too few changing readings yet; let the phone sit a little longer, or move it.');
   }
   $('#grid-msg').innerHTML = msg.join(' ');
   drawGrid();
@@ -862,51 +1016,41 @@ function drawGrid() {
   const cv = $('#grid-cv');
   const { ctx, w, h } = fit(cv, 0.42, 230, 300);
   ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
-  const vals = axisVals(gridAxis), g = GRID[gridAxis];
+  const S = analysed(), g = GRID[gridAxis], i = gridAxis;
+  const d = []; for (let k = 1; k < S.length; k++) if (S[k][i] != null && S[k - 1][i] != null) d.push(S[k][i] - S[k - 1][i]);
   const L = 14, R = w - 14, top = 24, midY = Math.round(h * 0.56), bot = h - 22;
   ctx.font = font(10); ctx.fillStyle = COL.text; ctx.textAlign = 'left';
-  ctx.fillText(`${AXIS_NAME[gridAxis]}: raw values, zoomed in`, L, 15);
+  const unit = i < 3 ? 'm/s²' : '°/s';
   ctx.fillText('folded onto one step', L, midY + 18);
-  if (vals.length < 2 || !g) {
+  if (d.length < 2 || !g) {
     ctx.textAlign = 'center'; ctx.fillText('no samples yet', w / 2, h / 2); ctx.textAlign = 'left'; return;
   }
-  // top: a window around the median, wide enough for ~24 grid steps (or 24 typical gaps)
-  const sorted = [...vals].sort((a, b) => a - b), med = sorted[sorted.length >> 1];
-  const s = g.ok ? g.step : refStep(gridAxis);   // no grid: fold by the undefended step, to show what was lost
-  let half = 12 * s;
-  if (!g.ok && REF[gridAxis] && REF[gridAxis].ok) half = 12 * refStep(gridAxis);   // same window as without the defense
-  else if (!g.ok) {      // no grid to size the window by: use the spread of the readings near the median
-    const near = vals.filter(v => Math.abs(v - med) < 1), m = near.reduce((a, v) => a + v, 0) / near.length;
-    half = Math.max(1e-3, 3 * Math.sqrt(near.reduce((a, v) => a + (v - m) ** 2, 0) / near.length));
-  }
-  const lo = med - half, hi = med + half;
-  const NB = Math.max(48, Math.min(Math.floor((R - L) / 2), 24 * 10));
+  // top: differences within ±6½ steps of zero (no grid: the undefended step, so the views compare)
+  const s = g.ok ? g.step : refStep(i), half = 6.5 * s, lo = -half, hi = half;
+  const NB = Math.max(52, Math.min(Math.floor((R - L) / 2), 13 * 12));
   const bins = new Array(NB).fill(0);
-  for (const v of vals) if (v >= lo && v < hi) bins[Math.floor((v - lo) / (hi - lo) * NB)]++;
+  for (const v of d) if (v >= lo && v < hi) bins[Math.floor((v - lo) / (hi - lo) * NB)]++;
   const mx = Math.max(1, ...bins), y1 = midY - 14, y0 = top + 4;
-  if (g.ok) {
-    ctx.strokeStyle = COL.grid2; ctx.lineWidth = 1;
-    const j0 = Math.ceil((lo / s) - g.phase), j1 = Math.floor((hi / s) - g.phase);
-    for (let j = j0; j <= j1; j++) {
-      const x = L + (R - L) * (((j + g.phase) * s) - lo) / (hi - lo);
-      ctx.beginPath(); ctx.moveTo(x, y1 + 2); ctx.lineTo(x, y1 + 6); ctx.stroke();
-    }
+  ctx.strokeStyle = COL.grid2; ctx.lineWidth = 1;
+  for (let j = -6; j <= 6; j++) {
+    const x = L + (R - L) * (j * s - lo) / (hi - lo);
+    ctx.beginPath(); ctx.moveTo(x, y1 + 2); ctx.lineTo(x, y1 + 6); ctx.stroke();
   }
   const bw = (R - L) / NB, barCol = g.ok ? (g.rounded ? COL.caution : COL.sig) : COL.fault;
   ctx.fillStyle = barCol;
-  bins.forEach((c, k) => { if (c) { const bh = (y1 - y0) * c / mx; ctx.fillRect(L + k * bw, y1 - bh, Math.max(1, bw - 0.5), bh); } });
+  bins.forEach((c, k) => { if (c) { const bh = (y1 - y0) * Math.sqrt(c / mx); ctx.fillRect(L + k * bw, y1 - bh, Math.max(1, bw - 0.5), bh); } });
   ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(L, y1 + 0.5); ctx.lineTo(R, y1 + 0.5); ctx.stroke();
-  ctx.fillStyle = COL.text; ctx.textAlign = 'right';
-  ctx.fillText(`${(hi - lo).toPrecision(3)} ${gridAxis < 3 ? 'm/s²' : '°/s'} wide`, R, 15);
-  // bottom: phase within one step
+  ctx.fillStyle = COL.text; ctx.textAlign = 'left';
+  ctx.fillText(`${AXIS_NAME[i]}: change per reading, ±${(6.5 * s).toPrecision(2)} ${unit}`, L, 15);
+  // bottom: where each non-zero change falls between two multiples of the step
   const NP = 33, ph = new Array(NP).fill(0);     // odd, so "on grid" is the middle bin
-  for (const v of vals) { let f = v / s - (g.ok ? g.phase : 0) + 0.5; f -= Math.floor(f); ph[Math.min(NP - 1, Math.floor(f * NP))]++; }
+  for (const v of d) { if (Math.abs(v) < s / 2) continue; let f = v / s + 0.5; f -= Math.floor(f); ph[Math.min(NP - 1, Math.floor(f * NP))]++; }
   const pm = Math.max(1, ...ph), py0 = midY + 26, py1 = bot, pw = (R - L) / NP;
   ctx.fillStyle = g.ok ? barCol : COL.text;
   ph.forEach((c, k) => { const bh = (py1 - py0) * c / pm; ctx.fillRect(L + k * pw + 1, py1 - bh, pw - 2, bh); });
   ctx.strokeStyle = COL.grid; ctx.beginPath(); ctx.moveTo(L, py1 + 0.5); ctx.lineTo(R, py1 + 0.5); ctx.stroke();
   ctx.fillStyle = COL.text; ctx.textAlign = 'left'; ctx.fillText('−½ step', L, h - 7);
-  ctx.textAlign = 'center'; ctx.fillText('on grid', (L + R) / 2, h - 7);
+  ctx.textAlign = 'center'; ctx.fillText('whole steps', (L + R) / 2, h - 7);
   ctx.textAlign = 'right'; ctx.fillText('+½ step', R, h - 7); ctx.textAlign = 'left';
 }
 $('#grid-ax').addEventListener('click', e => {
@@ -1034,7 +1178,7 @@ const capView = register($('#cap'), {
   tick() {
     if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); updateGravity(); CAP.gridDirty = true; }
     const now = performance.now();
-    if (CAP.gridDirty && now - gridAt > 250) { CAP.gridDirty = false; gridAt = now; updateGrid(); updateFingerprint(); updateDefense(); }
+    if (CAP.gridDirty && now - gridAt > 600) { CAP.gridDirty = false; gridAt = now; updateGrid(); updateFingerprint(); updateDefense(); }
   },
   resize() { drawCapture(); drawGravity(); drawGrid(); drawGlyph(FPRINT.ready ? FPRINT.hex : null); drawDefense(); },
 });

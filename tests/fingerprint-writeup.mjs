@@ -13,7 +13,7 @@ for (const [W, scheme] of [[1200, 'light'], [390, 'dark'], [390, 'light']]) {
   p.on('request', r => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) net.push(r.url()); });
   await p.goto(PAGE);
   // exercise everything: sensors (synthetic), simulator, keep, defenses
-  await p.click('#cap-start'); await dispatch(p, synthScript(makeSynth(3), 1, 90)); await sleep(400);
+  await p.click('#cap-start'); await dispatch(p, synthScript(makeSynth(3), 1, 90)); await sleep(900);
   await p.click('#fp-keep');
   await p.click('#cap-sim'); await sleep(2700);
   await p.click('#def-mode [data-v="round"]'); await sleep(100);

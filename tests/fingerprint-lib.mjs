@@ -31,16 +31,26 @@ export function makeSynth(seed, o = {}) {
     const offset = u(step * 40);         // arbitrary, not a whole number of steps
     return { step, offset, scale, bias, sigma: o.sigma ?? (acc ? 1.2 : 1.5) };
   });
-  return { seed, axes, f32: !!o.f32, noiseDefense: !!o.noiseDefense };
+  // opts.mix: cross-axis terms (each sensor's 3×3 gain matrix gets off-diagonal entries up to ±mix of its step;
+  //   SensorID's iPhone XS gyroscope had up to ~0.9%). opts.drift: a slowly wandering offset, like the bias
+  //   correction SensorID saw in Safari's gyroscope data (random-walk step size, as a fraction of a grid step).
+  const mix = [0, 1, 2, 3, 4, 5].map(i => [0, 1, 2].map(j => (i % 3 === j) ? 0 : u(o.mix || 0)));
+  return { seed, axes, mix, drift: o.drift || 0, walk: [0, 0, 0, 0, 0, 0], f32: !!o.f32, noiseDefense: !!o.noiseDefense };
 }
 // one sample [ax,ay,az,gx,gy,gz] for a true input; the ADC count is chosen so the reported
 // mean is (1+scale)·true + bias, and the value sits exactly on step·A + offset
 export function synthSample(ph, truth, r) {
-  return ph.axes.map((ax, i) => {
+  const A = ph.axes.map((ax, i) => {
     const want = (1 + ax.scale) * truth[i] + ax.bias;
-    let A = Math.round((want - ax.offset) / ax.step + ax.sigma * gauss(r));
-    if (ph.noiseDefense) A += r() - 0.5;           // iOS 12.2-style: noise before calibration
-    let v = ax.step * A + ax.offset;
+    let a = Math.round((want - ax.offset) / ax.step + ax.sigma * gauss(r));
+    if (ph.noiseDefense) a += r() - 0.5;           // iOS 12.2-style: noise before calibration
+    return a;
+  });
+  return ph.axes.map((ax, i) => {
+    const b = i < 3 ? 0 : 3;
+    let v = ax.step * A[i] + ax.offset;
+    for (let j = 0; j < 3; j++) if (b + j !== i) v += ph.mix[i][j] * ax.step * (A[b + j] - Math.round(ax.offset / ax.step));
+    if (ph.drift) { ph.walk[i] += ph.drift * ax.step * gauss(r); v += ph.walk[i]; }
     return ph.f32 ? Math.fround(v) : v;
   });
 }

@@ -52,10 +52,14 @@ Each Lab page's build plan and status pill are the source of truth. As of Octobe
 **live**: The Liar's Game (07), Traitors (08), Your Phone's Fingerprint (09) and Tear-Proof Secrets (10).
 No Lab page is next up.
 
-Fingerprint (09) notes: the math lives in `const FP` (sim phone, still detector, gravity fit, `gridFind`, fingerprint,
-defenses, walk/step counter), separate from the page code so tests can call it. A simulator feeds the same `ingest()`
+Fingerprint (09) notes: the math lives in `const FP` (sim phone, still detector, gravity fit, `gridAll`/`gridSensor`,
+fingerprint, defenses, walk/step counter), separate from the page code so tests can call it. The grid search follows
+SensorID §III-D: consecutive differences (offsets and drift cancel), a first step guess per axis, then a 3×3 gain matrix
+per sensor recovered by rounding G⁻¹·ΔO to whole counts in batches that only grow while the estimate is sharp enough.
+The ID hashes the diagonal steps only; the cross-axis terms are shown ("mixes in") but not hashed. A simulator feeds the same `ingest()`
 path as real `devicemotion` events. Tests build their own synthetic phones in `tests/fingerprint-lib.mjs`
-(per-axis lattice `step·A + offset` with known step, offset, scale error, bias and noise, optionally float32).
+(per-axis lattice `step·A + offset` with known step, offset, scale error, bias and noise; optionally float32,
+cross-axis mixing and a drifting offset).
 
 Known open items:
 
@@ -71,12 +75,10 @@ Known open items:
   `requestPermission()` prompt and its denial path, Android Chrome (expected: the browser's 0.1 grid, from Chromium's
   rounding), iOS Safari (expected: no grid, from the iOS 12.2 noise), Firefox on Android (unknown), the still detector's
   thresholds against real sensor noise, and whether real readings arrive at full precision or as float32.
-- Fingerprint prose was written without the SensorID paper itself: every host for it (cl.cam.ac.uk, the Cambridge
-  repository, IEEE, Semantic Scholar) is blocked by this environment's network policy. Its claims come from the
-  paper's abstract and the authors' project-site text (via search results), Apple's/NVD's CVE-2019-8541 entry, the
-  W3C DeviceOrientation spec source (`w3c/deviceorientation` index.bs) and Chromium's
-  `services/device/generic_sensor/platform_sensor_util.h`. Check the deep cut and "The fix" against the paper when
-  it can be read (noise amplitude, how the authors handled a full gain matrix, Google's response).
+- Fingerprint prose has been checked against the SensorID paper (a copy was uploaded to a session; the paper's hosts are
+  blocked by this environment's network policy, so don't try to fetch it). Not on the page: the paper's final step of
+  rounding iPhone gain-matrix entries to whole multiples of 2^-16 °/s (M-series coprocessors), which would make a
+  drift-blurred web estimate exact. Google's response is only "investigating" as of the paper; nothing newer is cited.
 - Tear-Proof tags record the secret's length (documented on the page). Padding to a fixed size was offered
   and not taken up.
 

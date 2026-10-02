@@ -7,6 +7,53 @@
 <meta name="description" content="Twenty questions against an opponent allowed to lie, and the error-correcting-code math that still catches it.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Ctext x='32' y='46' font-family='Georgia,serif' font-size='40' text-anchor='middle' fill='%23ffc861'%3E%3F%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="../lab.css">
+<style>
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 14px 10px; font-family: var(--mono); font-size: 12.5px; }
+  .ctl .lbl { color: #6d7d90; }
+  .ctl button { font: inherit; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ctl button:hover { border-color: #4a5d73; }
+  .ctl button:focus-visible, .board button:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
+  .ctl button[disabled] { opacity: .35; cursor: default; }
+  .ctl button.primary { background: #1f3a2c; border-color: var(--sig); color: var(--sig); }
+  .ctl input[type=number] { font: inherit; width: 4.2em; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 6px 6px; }
+  .ctl .sp { flex: 1 1 auto; }
+  .seg { display: inline-flex; }
+  .seg button { border-radius: 0; margin-left: -1px; padding: 7px 10px; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .board { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px 14px 12px; max-width: 520px; }
+  .board button { aspect-ratio: 1.25; min-width: 0; font-family: var(--mono); font-size: 13px; border-radius: 5px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    border: 1px solid transparent; background: #123024; color: var(--sig); position: relative; padding: 0; }
+  .board button.l1 { background: #33290f; color: var(--caution); }
+  .board button.dead { background: #10151c; color: #3a4655; text-decoration: line-through; }
+  .board button.in { border-color: var(--ir); box-shadow: inset 0 0 0 1px var(--ir); }
+  .board button.in::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--ir); }
+  .board button.found { background: var(--sig); color: #062014; font-weight: 700; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 14px 12px; font-family: var(--mono); font-size: 11.5px; color: #6d7d90; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+  .plot { border-top: 1px solid var(--bezel-edge); border-bottom: 1px solid var(--bezel-edge); line-height: 0; }
+  .plot canvas { width: 100%; display: block; }
+  .ros { display: grid; grid-template-columns: 1fr 1fr 2.4fr; font-family: var(--mono); }
+  .ro { padding: 10px 14px 12px; border-right: 1px solid var(--bezel-edge); }
+  .ro:last-child { border-right: 0; }
+  .ro .k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #6d7d90; }
+  .ro .v { font-size: 14px; color: var(--scr-bright); margin-top: 2px; }
+  .ro .v.ok { color: var(--sig); } .ro .v.bad { color: var(--fault); } .ro .v.fog { color: var(--caution); }
+  .hist { padding: 4px 14px 12px; font-family: var(--mono); font-size: 12.5px; border-top: 1px solid var(--bezel-edge); counter-reset: q; }
+  .hist:empty { display: none; }
+  .hist .it { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--bezel-edge); }
+  .hist .it:first-child { border-top: 0; }
+  .hist .n { color: #6d7d90; width: 2.2em; flex: none; }
+  .hist .q { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  .hist .a { flex: none; color: var(--scr-bright); }
+  .hist .lie { color: var(--fault); }
+  .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
+  @media (max-width: 520px) {
+    .ros { grid-template-columns: 1fr 1fr; } .ro.wide { grid-column: 1 / -1; border-top: 1px solid var(--bezel-edge); border-right: 0; }
+    .board { gap: 3px; padding: 4px 10px 12px; } .board button { font-size: 12px; }
+    .ctl { padding: 12px 10px 8px; gap: 6px; } .seg button { padding: 7px 8px; }
+  }
+</style>
 </head>
 <body>
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
@@ -27,7 +74,41 @@
 <main>
 <section>
   <div class="wrap">
-    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>The game board goes here. See the build plan below.</div></div></div>
+    <h2>Find my number, 1 to 64</h2>
+    <div class="prose"><p>I'm "thinking" of a number from 1 to 64 and may lie <b>once</b>. Build a question by
+    tapping numbers (or use a preset), then ask "is it one of these?". Honest, six questions would do. With one lie
+    the best possible is <b>10</b>, and the meter below shows, after every answer, whether 10 is still in reach.</p></div>
+    <div class="panel" id="game">
+      <div class="ctl" aria-label="question presets">
+        <span class="lbl">set:</span>
+        <button id="g-ge">≥</button><input id="g-gen" type="number" min="1" max="64" value="33" aria-label="threshold for the ≥ preset">
+        <span class="lbl">binary digit</span>
+        <span class="seg" id="g-bit"><button data-v="1">1</button><button data-v="2">2</button><button data-v="4">4</button><button data-v="8">8</button><button data-v="16">16</button><button data-v="32">32</button></span>
+        <button id="g-even">even</button>
+        <button id="g-inv">flip</button>
+        <button id="g-clr">clear</button>
+      </div>
+      <div class="board" id="g-board" role="group" aria-label="numbers 1 to 64; tap to add to or remove from the question"></div>
+      <div class="legend"><span><i style="background:#123024;box-shadow:inset 0 0 0 1px var(--sig)"></i>no lies needed</span><span><i style="background:#33290f;box-shadow:inset 0 0 0 1px var(--caution)"></i>only if I lied once</span><span><i style="background:#10151c;box-shadow:inset 0 0 0 1px #3a4655"></i>ruled out</span><span><i style="box-shadow:inset 0 0 0 2px var(--ir)"></i>in your question</span></div>
+      <div class="ctl" style="padding-top:0">
+        <button id="g-ask" class="primary">ask</button>
+        <button id="g-hint">suggest a question</button>
+        <span class="sp"></span>
+        <button id="g-new">new game</button>
+      </div>
+      <div class="plot"><canvas id="g-cv" aria-label="Volume meter: the log of the remaining volume after each question, against the capacity of the questions left."></canvas></div>
+      <div class="ros">
+        <div class="ro"><div class="k">questions</div><div class="v" id="g-q">—</div></div>
+        <div class="ro"><div class="k">volume / 2<sup>q</sup></div><div class="v" id="g-vol">—</div></div>
+        <div class="ro wide"><div class="k">status</div><div class="v" id="g-status">—</div></div>
+      </div>
+      <div class="hist" id="g-hist" aria-live="polite"></div>
+    </div>
+    <p class="hint"><b>Volume</b> counts, for every number still possible, the answer sequences I could still give
+    if that were my number: a number that needs no lie so far can still survive any one lie in the <i>q</i> questions
+    left (<i>q</i> + 1 ways), a number that needs one lie can't survive another (1 way). Each answer splits the volume
+    in two and I always pick the bigger part, so the best a question can do is halve it. The questions left can
+    separate at most 2<sup><i>q</i></sup> sequences, so once the volume is over the line no strategy can win in time.</p>
   </div>
 </section>
 
@@ -60,9 +141,9 @@
     <ol class="plan">
       <li class="done"><b>Core math, no UI.</b> A state is a vector of counts: how many candidates have used 0, 1, …, k lies.
         <ul><li>Berlekamp volume: V<sub>q</sub>(state) = Σ<sub>i</sub> a<sub>i</sub> · Σ<sub>j≤k−i</sub> C(q, j).</li>
-        <li>The adversary answers to maximize the volume that remains, breaking ties toward keeping more clean candidates.</li>
+        <li>The adversary answers to leave the most work: the most questions still needed (exact search near the end), then the most volume, then the most candidates.</li>
         <li>Test: a state is winnable in q questions only if V<sub>q</sub> ≤ 2<sup>q</sup>. Check against the known 1-lie result (10⁶ needs 25).</li></ul></li>
-      <li><b>Small board, 1 lie.</b> Numbers 1–64, one allowed lie, question = "is it in this set?" built by tapping cells or using presets (≥ n, bit k is 1, even).
+      <li class="done"><b>Small board, 1 lie.</b> Numbers 1–64, one allowed lie, question = "is it in this set?" built by tapping cells or using presets (≥ n, bit k is 1, even).
         <ul><li>Cells colored by lies used, a question history, and the volume meter against 2<sup>q</sup>.</li></ul></li>
       <li><b>Reverse mode.</b> The page asks using a volume-halving strategy. You answer with Yes/No and may lie up to k times, and it announces your number.</li>
       <li><b>Scale and settings.</b> 1–1,000,000 with 0–3 lies (the board becomes a histogram of the lie-count classes), and a "kid mode" with 1–20 and picture questions.</li>
@@ -146,17 +227,21 @@ const LG = (() => {
     return { yes, no };
   }
 
-  /* The liar. It never picks a number; it answers so as to leave the most
-     volume (q = questions left including this one, default: what the bound
-     says you need), ties going to the side that keeps more clean candidates.
-     A child with no candidates has volume 0, so it never answers itself
-     into a contradiction. Returns true for "yes". */
+  /* The liar. It never picks a number; it picks whichever answer leaves you
+     more work: first the questions still needed (found by exact search once
+     few candidates are left, the volume bound before that), then the volume
+     (q = questions left including this one), then more candidates alive, then
+     more clean ones. Volume alone isn't enough near the end: [1 clean, 2
+     suspect] can split into [1, 0] or [0, 3] with equal volume, and [1, 0] is
+     already over. A child with no candidates needs 0 and has volume 0, so it
+     never answers itself into a contradiction. Returns true for "yes";
+     a perfect tie is a coin flip, so replays differ. */
   function adversary(a, x, q = Math.max(1, need(a))) {
     const { yes, no } = children(a, x);
-    const vy = volume(yes, q - 1), vn = volume(no, q - 1);
-    if (vy !== vn) return vy > vn;
-    for (let i = 0; i < a.length; i++) if (yes[i] !== no[i]) return yes[i] > no[i];
-    return true;
+    const keys = c => [alive(c) <= ENDGAME ? exactNeed(c) : need(c), volume(c, q - 1), alive(c), ...c];
+    const ky = keys(yes), kn = keys(no);
+    for (let i = 0; i < ky.length; i++) if (ky[i] !== kn[i]) return ky[i] > kn[i];
+    return Math.random() < 0.5;   // a perfect tie: either answer is equally bad for you
   }
 
   /* All questions x for position a, in the order a sensible questioner would
@@ -190,6 +275,8 @@ const LG = (() => {
     memo.set(key, ok);
     return ok;
   }
+  /* fewest questions that always win (exact; small positions only) */
+  function exactNeed(a) { let q = need(a); while (!wins(a, q)) q++; return q; }
 
   /* The questioner: pick x so both answers leave as close to equal volume
      as possible. V_yes − V_no = Σ (2x_i − a_i)·C(q−1, k−i), so halving every
@@ -249,7 +336,180 @@ const LG = (() => {
     return a;
   }
 
-  return { C, weight, volume, alive, fits, need, children, adversary, candidates, question, wins, answer, counts };
+  return { C, weight, volume, alive, fits, need, children, adversary, candidates, question, wins, exactNeed, answer, counts };
+})();
+</script>
+<script src="../core.js"></script>
+<script>
+/* ================================================================
+   The game: 1–64, one lie. You build "is it in this set?" questions;
+   LG.adversary answers. The board tracks lies used per number.
+   ================================================================ */
+(() => {
+  const N = 64, K = 1;
+  const el = id => document.getElementById(id);
+  const board = el('g-board'), cv = el('g-cv'), hist = el('g-hist');
+  const cells = [];
+  for (let n = 1; n <= N; n++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = n; b.dataset.n = n;
+    board.appendChild(b); cells.push(b);
+  }
+  const start = [N, ...new Array(K).fill(0)];
+  // Fewest questions that can always win. For one lie and an even count this is
+  // the volume bound itself (Pelc 1987): 64 · (10 + 1) = 704 ≤ 2^10.
+  const BUDGET = LG.need(start);
+
+  let lies, sel, label, past, over;
+  function reset() {
+    lies = new Array(N).fill(0); sel = new Uint8Array(N); label = ''; past = []; over = false;
+    render();
+  }
+  const state = () => LG.counts(lies, K);
+  const qLeft = () => Math.max(0, BUDGET - past.length);
+  const xOf = set => { const x = new Array(K + 1).fill(0); lies.forEach((l, i) => { if (l <= K && set[i]) x[l]++; }); return x; };
+
+  /* ---------- building a question ---------- */
+  function setBy(f, name) { for (let i = 0; i < N; i++) sel[i] = f(i + 1) ? 1 : 0; label = name; render(); }
+  board.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b || over) return;
+    const i = b.dataset.n - 1; sel[i] ^= 1; label = ''; render();
+  });
+  el('g-ge').onclick = () => { const t = clamp(Math.round(+el('g-gen').value) || 33, 1, N); el('g-gen').value = t; setBy(n => n >= t, `is it ≥ ${t}?`); };
+  el('g-gen').addEventListener('keydown', e => { if (e.key === 'Enter') el('g-ge').click(); });
+  el('g-bit').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const v = +b.dataset.v; setBy(n => n & v, `is its binary digit ${v} a 1?`);
+  });
+  el('g-even').onclick = () => setBy(n => n % 2 === 0, 'is it even?');
+  el('g-inv').onclick = () => { for (let i = 0; i < N; i++) sel[i] ^= 1; label = ''; render(); };
+  el('g-clr').onclick = () => { sel.fill(0); label = ''; render(); };
+  // the hint: the questioner's best split (how many of each class), filled with the lowest numbers of each class
+  el('g-hint').onclick = () => {
+    const x = LG.question(state(), Math.max(1, qLeft(), LG.need(state())));   // once stuck, plan for what's actually needed
+    sel.fill(0);
+    for (let i = 0; i < N; i++) if (lies[i] <= K && x[lies[i]] > 0) { sel[i] = 1; x[lies[i]]--; }
+    label = ''; render();
+  };
+
+  /* ---------- asking ---------- */
+  function describe(set) {
+    if (label) return label;
+    // runs of consecutive numbers as ranges: {1–8, 17–24}
+    const runs = [];
+    set.forEach((v, i) => { if (!v) return; const r = runs[runs.length - 1]; if (r && r[1] === i) r[1] = i + 1; else runs.push([i + 1, i + 1]); });
+    const parts = runs.map(([p, r]) => p === r ? `${p}` : r === p + 1 ? `${p}, ${r}` : `${p}–${r}`);
+    const count = set.reduce((t, v) => t + v, 0);
+    return parts.length <= 5 ? `is it in {${parts.join(', ')}}?` : `is it in {${parts.slice(0, 3).join(', ')}, …}? (${count} numbers)`;
+  }
+  el('g-ask').onclick = () => {
+    if (over || !sel.some(v => v)) return;
+    const a = state(), x = xOf(sel);
+    const said = LG.adversary(a, x);
+    const set = sel.slice();
+    past.push({ set, said, text: describe(set), before: a });
+    lies = LG.answer(lies, i => set[i] === 1, said, K);
+    if (LG.alive(state()) <= 1) over = true;
+    sel.fill(0); label = '';
+    render();
+  };
+  el('g-new').onclick = reset;
+
+  /* ---------- drawing ---------- */
+  // volume measured with the questions left in the budget (q = 0 once it's spent)
+  const volAt = (a, t) => LG.volume(a, Math.max(0, BUDGET - t));
+  function draw() {
+    const { ctx, w, h } = fit(cv, 0.3, 150, 210);
+    ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+    const T = past.length, X1 = Math.max(BUDGET, T + (over ? 0 : 1)) + 0.4;
+    const top = Math.log2(volAt(start, 0)) + 0.6;
+    const L = 30, R = 12, Tp = 24, B = 22;
+    const sx = t => L + (t + 0.2) / (X1 + 0.2) * (w - L - R), sy = y => Tp + (top - y) / top * (h - Tp - B);
+    // grid + x ticks
+    ctx.font = font(10); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    const step = (w < 420 && X1 > 14) ? 2 : 1;
+    for (let t = 0; t <= X1; t++) {
+      ctx.strokeStyle = t === BUDGET ? COL.grid2 : COL.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx(t) + .5, Tp); ctx.lineTo(sx(t) + .5, h - B); ctx.stroke();
+      if (t % step === 0) { ctx.fillStyle = t === BUDGET ? COL.bright : COL.text; ctx.fillText(t, sx(t), h - B + 5); }
+    }
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = COL.text;
+    for (let y = 0; y < top; y += 2) { ctx.fillText(y, L - 6, sy(y)); }
+    // capacity: log2 of 2^q = q, the questions left
+    ctx.strokeStyle = COL.ir; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(sx(0), sy(BUDGET)); ctx.lineTo(sx(BUDGET), sy(0)); ctx.stroke(); ctx.setLineDash([]);
+    // volume so far
+    const pts = [volAt(start, 0)];
+    past.forEach((p, t) => { const after = t + 1 < past.length ? past[t + 1].before : state(); pts.push(volAt(after, t + 1)); });
+    ctx.strokeStyle = COL.sig; ctx.lineWidth = 2; ctx.beginPath();
+    pts.forEach((v, t) => { const y = sy(Math.log2(Math.max(1, v))); t ? ctx.lineTo(sx(t), y) : ctx.moveTo(sx(t), y); }); ctx.stroke();
+    pts.forEach((v, t) => {
+      const bad = v > 2 ** Math.max(0, BUDGET - t);
+      ctx.fillStyle = bad ? COL.fault : COL.sig;
+      ctx.beginPath(); ctx.arc(sx(t), sy(Math.log2(Math.max(1, v))), 3.2, 0, TAU); ctx.fill();
+    });
+    // preview: what the current question would leave if I answer the worse way
+    if (!over && sel.some(v => v)) {
+      const { yes, no } = LG.children(state(), xOf(sel));
+      const worst = Math.max(volAt(yes, T + 1), volAt(no, T + 1));
+      ctx.strokeStyle = COL.caution; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx(T), sy(Math.log2(Math.max(1, pts[T])))); ctx.lineTo(sx(T + 1), sy(Math.log2(Math.max(1, worst)))); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = COL.caution; ctx.beginPath(); ctx.arc(sx(T + 1), sy(Math.log2(Math.max(1, worst))), 3, 0, TAU); ctx.fill();
+    }
+    // legend
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = font(10.5);
+    const lg = [['log₂ volume', COL.sig], ['capacity q', COL.ir]];
+    if (!over && sel.some(v => v)) lg.push([w < 420 ? 'this question' : 'this question, worse answer', COL.caution]);
+    let lx = L;
+    for (const [t, c] of lg) { ctx.fillStyle = c; ctx.fillRect(lx, 9, 10, 3); ctx.fillStyle = COL.text; ctx.fillText(t, lx + 14, 11); lx += 14 + ctx.measureText(t).width + 14; }
+  }
+
+  function render() {
+    const a = state(), T = past.length, q = qLeft();
+    const winner = over ? lies.findIndex(l => l <= K) : -1;
+    cells.forEach((b, i) => {
+      const l = lies[i];
+      b.className = (l > K ? 'dead' : 'l' + l) + (sel[i] ? ' in' : '') + (i === winner ? ' found' : '');
+      b.setAttribute('aria-pressed', sel[i] ? 'true' : 'false');
+      b.setAttribute('aria-label', `${i + 1}: ${l > K ? 'ruled out' : l ? 'only if you lied once' : 'no lies needed'}${sel[i] ? ', in question' : ''}`);
+    });
+    const nSel = sel.reduce((s, v) => s + v, 0);
+    el('g-ask').disabled = over || !nSel;
+    el('g-hint').disabled = over;
+    el('g-ask').textContent = over ? 'found it' : nSel ? `ask: is it one of these ${nSel}?` : 'ask';
+    el('g-q').textContent = `${T} of ${BUDGET}`;
+    el('g-q').className = 'v' + (T > BUDGET ? ' bad' : '');
+    const V = volAt(a, T), cap = 2 ** q;
+    el('g-vol').textContent = `${V.toLocaleString('en-US')} / ${cap.toLocaleString('en-US')}`;
+    el('g-vol').className = 'v ' + (V > cap ? 'bad' : 'ok');
+    const st = el('g-status');
+    if (over) {
+      const lied = past.map((p, t) => (p.set[winner] === 1) !== p.said ? t + 1 : 0).filter(Boolean);
+      st.textContent = `It's ${winner + 1}. ${T <= BUDGET ? `Found in ${T}, the minimum.` : `Found in ${T}; ${BUDGET} was possible.`} ` +
+        (lied.length ? `I lied on question ${lied[0]}.` : `I never lied, but until the end you couldn't know that.`);
+      st.className = 'v ' + (T <= BUDGET ? 'ok' : 'fog');
+    } else if (!T) {
+      st.textContent = `${a[0]} numbers, ${BUDGET} questions. Build a question and ask.`; st.className = 'v';
+    } else if (V > cap) {
+      st.textContent = T >= BUDGET ? `Out of budget. Keep asking: ${LG.need(a)} more at the very least.`
+        : `Stuck: the volume is over 2^${q}, so no strategy can finish in ${BUDGET} now. You'll need at least ${LG.need(a)} more.`;
+      st.className = 'v bad';
+    } else {
+      st.textContent = `${a[0]} clean, ${a[1]} suspect. Still possible in ${BUDGET}: the volume fits in ${q} questions.`; st.className = 'v ok';
+    }
+    // history, newest first; once found, mark the lie
+    hist.innerHTML = '';
+    for (let t = past.length - 1; t >= 0; t--) {
+      const p = past[t], it = document.createElement('div'), lie = over && (p.set[winner] === 1) !== p.said;
+      it.className = 'it';
+      it.innerHTML = `<span class="n">Q${t + 1}</span><span class="q"></span><span class="a${lie ? ' lie' : ''}">${p.said ? 'yes' : 'no'}${lie ? ' ← lie' : ''}</span>`;
+      it.querySelector('.q').textContent = p.text;
+      hist.appendChild(it);
+    }
+    draw();
+  }
+  register(el('game'), { resize: draw });
+  reset();
 })();
 </script>
 </body>

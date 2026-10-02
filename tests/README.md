@@ -11,6 +11,12 @@ Most UI tests print what they saw rather than asserting. A clean run prints `err
 (no page errors) and `sw` equal to the viewport width (no horizontal scroll) at 1200 and 390 px.
 Look at the screenshots in `tests/out/` after layout changes.
 
+## The Liar's Game (`liar/`)
+
+| file | checks |
+|---|---|
+| `liar-math.mjs` | Step 1. Volume conservation on random questions; the bound for 10⁶ is 20/25/29/33 for 0–3 lies; exact search for n ≤ 40 matches Pelc's one-lie formula; the questioner beats *every* answer sequence at 10⁶ in exactly the bound (0–3 lies), and in a sweep of other sizes (one lie: always Pelc's number); questioner vs adversary on small boards uses the exact optimum. ~4 s. |
+
 ## Traitors (`traitors/`)
 
 | file | checks |

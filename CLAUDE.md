@@ -49,8 +49,13 @@ QR version 3-H encoder/decoder). Lab pages may also load `../core.js` for the ca
 ## Lab progress
 
 Each Lab page's build plan and status pill are the source of truth. As of October 2026: Traitors (08) and
-Tear-Proof Secrets (10) are **live**; The Liar's Game (07) and Your Phone's Fingerprint (09) are **blueprint**.
+Tear-Proof Secrets (10) are **live**; The Liar's Game (07) is **building** (step 1 of 5 done); Your Phone's Fingerprint (09)
+is **blueprint**.
 Known open items:
+
+- Liar's Game questioner (`LG.question`) searches exactly only below 24 live candidates (cost grows fast past that). It's
+  optimal for one lie at every size and at 10^6 for 0–3 lies, but with 3 lies some mid sizes (27, 28) take one extra question.
+  An exact search at 24 candidates with 3 lies can take ~0.5 s, so reverse mode (step 3) shouldn't block on it.
 
 - Tear-Proof camera scanning (`BarcodeDetector`, Chrome on Android) has only been tested with a mocked
   detector, and printed tags haven't been scanned from paper. Both need a real phone.

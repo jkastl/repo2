@@ -12,7 +12,7 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 07 <span class="status">blueprint</span></div>
+    <div class="eyebrow">Lab · 07 <span class="status building">building</span></div>
     <h1>The Liar's Game</h1>
     <div class="lede">
       <p>I'm thinking of a number from 1 to 1,000,000. Ask me yes-or-no questions. With honest
@@ -58,7 +58,7 @@
   <div class="wrap">
     <h2>Build plan</h2>
     <ol class="plan">
-      <li><b>Core math, no UI.</b> A state is a vector of counts: how many candidates have used 0, 1, …, k lies.
+      <li class="done"><b>Core math, no UI.</b> A state is a vector of counts: how many candidates have used 0, 1, …, k lies.
         <ul><li>Berlekamp volume: V<sub>q</sub>(state) = Σ<sub>i</sub> a<sub>i</sub> · Σ<sub>j≤k−i</sub> C(q, j).</li>
         <li>The adversary answers to maximize the volume that remains, breaking ties toward keeping more clean candidates.</li>
         <li>Test: a state is winnable in q questions only if V<sub>q</sub> ≤ 2<sup>q</sup>. Check against the known 1-lie result (10⁶ needs 25).</li></ul></li>
@@ -93,5 +93,164 @@
 </section>
 </main>
 <footer><div class="wrap">Lab · 07 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/tolerance">source</a></div></footer>
+<script>
+"use strict";
+/* ================================================================
+   Math core: Ulam's game as counts, Berlekamp's volume, the adversary,
+   and a volume-halving questioner. No UI.
+
+   A candidate that has "used" i lies is one the answers so far would
+   have to be lying about i times if it were the secret. With k lies
+   allowed, the whole position is the vector a = [a_0, …, a_k]: how many
+   candidates have used 0, 1, …, k lies. Anything past k is dead.
+
+   A question is "is it in this set?". It only matters how many of each
+   class are in the set: x = [x_0, …, x_k], 0 ≤ x_i ≤ a_i.
+   ================================================================ */
+const LG = (() => {
+  /* C(n, r), exact for every size the page uses (≤ 2^53) */
+  function C(n, r) {
+    if (r < 0 || r > n) return 0;
+    let v = 1;
+    for (let i = 1; i <= r; i++) v = v * (n - r + i) / i;
+    return Math.round(v);
+  }
+  /* answer sequences of length q that a candidate with i lies used still survives:
+     it may absorb up to k − i more lies, anywhere among the q answers */
+  function weight(q, k, i) { let s = 0; for (let j = 0; j <= k - i; j++) s += C(q, j); return s; }
+
+  /* Berlekamp volume with q questions left: V_q(a) = Σ a_i · Σ_{j ≤ k−i} C(q, j).
+     Every answer splits it exactly: V_q(a) = V_{q−1}(yes) + V_{q−1}(no). So the
+     worse answer leaves at least half, and q questions can handle at most 2^q. */
+  function volume(a, q) {
+    const k = a.length - 1;
+    let v = 0;
+    for (let i = 0; i <= k; i++) if (a[i]) v += a[i] * weight(q, k, i);
+    return v;
+  }
+  const alive = a => a.reduce((s, n) => s + n, 0);
+  /* the volume bound: necessary to win in q questions (not always sufficient) */
+  const fits = (a, q) => volume(a, q) <= 2 ** q;
+  /* fewest questions the volume bound allows from here */
+  function need(a) { let q = 0; while (!fits(a, q)) q++; return q; }
+
+  /* the two positions a question x can lead to.
+     "yes": candidates in the set keep their count, the rest move up one;
+     "no": the other way round. Moving past k means dead. */
+  function children(a, x) {
+    const k = a.length - 1, yes = new Array(k + 1).fill(0), no = new Array(k + 1).fill(0);
+    for (let i = 0; i <= k; i++) {
+      yes[i] += x[i]; no[i] += a[i] - x[i];
+      if (i < k) { yes[i + 1] += a[i] - x[i]; no[i + 1] += x[i]; }
+    }
+    return { yes, no };
+  }
+
+  /* The liar. It never picks a number; it answers so as to leave the most
+     volume (q = questions left including this one, default: what the bound
+     says you need), ties going to the side that keeps more clean candidates.
+     A child with no candidates has volume 0, so it never answers itself
+     into a contradiction. Returns true for "yes". */
+  function adversary(a, x, q = Math.max(1, need(a))) {
+    const { yes, no } = children(a, x);
+    const vy = volume(yes, q - 1), vn = volume(no, q - 1);
+    if (vy !== vn) return vy > vn;
+    for (let i = 0; i < a.length; i++) if (yes[i] !== no[i]) return yes[i] > no[i];
+    return true;
+  }
+
+  /* All questions x for position a, in the order a sensible questioner would
+     try them: balanced first. Skips any where the worse answer would leave more
+     volume than q − 1 questions can handle (V > 2^(q−1)): those lose outright. */
+  function candidates(a, q) {
+    const k = a.length - 1, cap = 2 ** (q - 1), out = [];
+    const x = new Array(k + 1).fill(0);
+    (function each(i) {
+      if (i <= k) { for (let v = 0; v <= a[i]; v++) { x[i] = v; each(i + 1); } x[i] = 0; return; }
+      const { yes, no } = children(a, x), vy = volume(yes, q - 1), vn = volume(no, q - 1);
+      if (vy <= cap && vn <= cap) out.push({ x: x.slice(), gap: Math.abs(vy - vn) });
+    })(0);
+    return out.sort((p, r) => p.gap - r.gap).map(p => p.x);
+  }
+
+  /* Exact game value by search (small positions only): can the questioner
+     always finish within q questions? The adversary may give any answer that
+     leaves at least one candidate. The memo is shared across calls. */
+  const memo = new Map();
+  function wins(a, q) {
+    if (alive(a) <= 1) return true;
+    if (q === 0 || !fits(a, q)) return false;
+    const key = a.join(',') + '/' + q;
+    if (memo.has(key)) return memo.get(key);
+    let ok = false;
+    for (const x of candidates(a, q)) {
+      const { yes, no } = children(a, x);
+      if ((!alive(yes) || wins(yes, q - 1)) && (!alive(no) || wins(no, q - 1))) { ok = true; break; }
+    }
+    memo.set(key, ok);
+    return ok;
+  }
+
+  /* The questioner: pick x so both answers leave as close to equal volume
+     as possible. V_yes − V_no = Σ (2x_i − a_i)·C(q−1, k−i), so halving every
+     class balances it, apart from rounding. Going from the class with the
+     biggest coefficient down, put half of each class in the set (floor or
+     ceiling) and carry the rounding error into the next class.
+     (Balancing with one class alone also halves the volume, but the two
+     answers then leave very differently shaped positions, and the lopsided
+     one can be lost even though its volume fits.)
+     Halving the volume isn't quite enough near the end either: a few positions
+     pass the bound but can't be won (three candidates with one lie left each
+     need 5 questions, not the 4 the bound allows). So once few candidates are
+     left, it searches exactly for the most balanced question that still wins.
+     (24 keeps every question under about half a second on a laptop. It is
+     optimal at 1..10^6 for 0–3 lies and for every board size with one lie;
+     with 3 lies a few mid sizes such as 27 take one question more than needed.) */
+  const ENDGAME = 24;
+  function question(a, q = Math.max(1, need(a))) {
+    if (alive(a) <= ENDGAME && q > 0) {
+      for (const x of candidates(a, q)) {
+        const { yes, no } = children(a, x);
+        if ((!alive(yes) || wins(yes, q - 1)) && (!alive(no) || wins(no, q - 1))) return x;
+      }
+      // can't be won in q: fall through and play the most balanced question anyway
+    }
+    const k = a.length - 1;
+    const c = a.map((_, i) => C(q - 1, k - i));
+    const order = a.map((_, i) => i).sort((i, j) => c[j] - c[i]);
+    let best = null, bestGap = Infinity;
+    const x = new Array(k + 1).fill(0);
+    (function fill(t, carry) {          // carry = Σ_done (x_i − a_i/2)·c_i
+      if (t === order.length) {
+        const gap = Math.abs(carry);
+        // equal gaps: prefer a question that actually splits the candidates
+        const split = x.some(v => v > 0) && x.some((v, i) => v < a[i]);
+        if (gap < bestGap || (gap === bestGap && split && !best.split)) { bestGap = gap; best = { x: x.slice(), split }; }
+        return;
+      }
+      const i = order[t];
+      const aim = c[i] ? a[i] / 2 - carry / c[i] : a[i] / 2;
+      for (const v of new Set([Math.floor(aim), Math.ceil(aim)].map(v => Math.min(a[i], Math.max(0, v))))) {
+        x[i] = v; fill(t + 1, carry + (v - a[i] / 2) * c[i]);
+      }
+      x[i] = 0;
+    })(0, 0);
+    return best.x;
+  }
+
+  /* The same game on actual numbers, for the board: lies[n] is how many
+     lies candidate n has used (k + 1 = dead). */
+  function answer(lies, inSet, saidYes, k) {
+    return lies.map((l, n) => l > k ? l : l + (inSet(n) !== saidYes ? 1 : 0));
+  }
+  function counts(lies, k) {
+    const a = new Array(k + 1).fill(0);
+    for (const l of lies) if (l <= k) a[l]++;
+    return a;
+  }
+
+  return { C, weight, volume, alive, fits, need, children, adversary, candidates, question, wins, answer, counts };
+})();
+</script>
 </body>
 </html>

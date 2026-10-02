@@ -12,7 +12,7 @@
   .ctl .lbl { color: #6d7d90; }
   .ctl button { font: inherit; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .ctl button:hover { border-color: #4a5d73; }
-  .ctl button:focus-visible, .board button:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
+  .ctl button:focus-visible, .board .c:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
   .ctl button[disabled] { opacity: .35; cursor: default; }
   .ctl button.primary { background: #1f3a2c; border-color: var(--sig); color: var(--sig); }
   .ctl input[type=number] { font: inherit; width: 4.2em; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 6px 6px; }
@@ -21,14 +21,16 @@
   .seg button { border-radius: 0; margin-left: -1px; padding: 7px 10px; }
   .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
   .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .seg button.on { background: #1f3a2c; border-color: var(--sig); color: var(--sig); position: relative; }
   .board { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; padding: 4px 14px 12px; max-width: 520px; }
-  .board button { aspect-ratio: 1.25; min-width: 0; font-family: var(--mono); font-size: 13px; border-radius: 5px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  .board .c { display: grid; place-items: center; aspect-ratio: 1.25; min-width: 0; font-family: var(--mono); font-size: 13px; border-radius: 5px; cursor: pointer; -webkit-tap-highlight-color: transparent;
     border: 1px solid transparent; background: #123024; color: var(--sig); position: relative; padding: 0; }
-  .board button.l1 { background: #33290f; color: var(--caution); }
-  .board button.dead { background: #10151c; color: #3a4655; text-decoration: line-through; }
-  .board button.in { border-color: var(--ir); box-shadow: inset 0 0 0 1px var(--ir); }
-  .board button.in::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--ir); }
-  .board button.found { background: var(--sig); color: #062014; font-weight: 700; }
+  .board .c.l1 { background: #33290f; color: var(--caution); }
+  .board .c.l2 { background: #3a1a15; color: #ff9a8a; }
+  .board .c.dead { background: #10151c; color: #3a4655; text-decoration: line-through; }
+  .board .c.in { border-color: var(--ir); box-shadow: inset 0 0 0 1px var(--ir); }
+  .board .c.in::after { content: ""; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--ir); }
+  .board .c.found { background: var(--sig); color: #062014; font-weight: 700; }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 0 14px 12px; font-family: var(--mono); font-size: 11.5px; color: #6d7d90; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
   .plot { border-top: 1px solid var(--bezel-edge); border-bottom: 1px solid var(--bezel-edge); line-height: 0; }
@@ -47,10 +49,15 @@
   .hist .q { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
   .hist .a { flex: none; color: var(--scr-bright); }
   .hist .lie { color: var(--fault); }
+  .ask { padding: 12px 14px 4px; font-family: var(--mono); }
+  .ask .big { font-size: 17px; color: var(--scr-bright); }
+  .ask .sub { font-size: 12.5px; color: #6d7d90; margin-top: 2px; overflow-wrap: anywhere; }
+  .ctl button.yes { background: #1f3a2c; border-color: var(--sig); color: var(--sig); min-width: 5.5em; font-size: 14px; }
+  .ctl button.no { background: #3a1d19; border-color: var(--fault); color: var(--fault); min-width: 5.5em; font-size: 14px; }
   .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
   @media (max-width: 520px) {
     .ros { grid-template-columns: 1fr 1fr; } .ro.wide { grid-column: 1 / -1; border-top: 1px solid var(--bezel-edge); border-right: 0; }
-    .board { gap: 3px; padding: 4px 10px 12px; } .board button { font-size: 12px; }
+    .board { gap: 3px; padding: 4px 10px 12px; } .board .c { font-size: 12px; }
     .ctl { padding: 12px 10px 8px; gap: 6px; } .seg button { padding: 7px 8px; }
   }
 </style>
@@ -114,6 +121,45 @@
 
 <section>
   <div class="wrap">
+    <h2>Your turn to lie</h2>
+    <div class="prose"><p>Think of a number from 1 to 64 and keep it to yourself. I'll ask whether it's one of
+    the highlighted numbers. Answer Yes or No, and lie whenever you like, up to the limit you set. I'll still name
+    your number, and I'll tell you which answers were lies.</p></div>
+    <div class="panel" id="rev">
+      <div class="ctl">
+        <span class="lbl">you may lie</span>
+        <span class="seg" id="r-k"><button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button></span>
+        <span class="lbl">times</span>
+        <span class="sp"></span>
+        <button id="r-new">start over</button>
+      </div>
+      <div class="ask" aria-live="polite"><div class="big" id="r-q">—</div><div class="sub" id="r-set"></div></div>
+      <div class="ctl">
+        <button id="r-yes" class="yes">yes</button>
+        <button id="r-no" class="no">no</button>
+        <button id="r-undo">undo</button>
+      </div>
+      <div class="board" id="r-board" aria-hidden="true"></div>
+      <div class="legend" id="r-legend"></div>
+      <div class="ros">
+        <div class="ro"><div class="k">questions</div><div class="v" id="r-n">—</div></div>
+        <div class="ro"><div class="k">still possible</div><div class="v" id="r-alive">—</div></div>
+        <div class="ro wide"><div class="k">status</div><div class="v" id="r-status">—</div></div>
+      </div>
+      <div class="hist" id="r-hist"></div>
+    </div>
+    <p class="hint">The page picks each question to split the volume as evenly as it can, the same count as the meter
+    above, and near the end it searches every possible continuation. It never asks more than the number shown:
+    that's the guaranteed worst case for this many lies, checked against every way you could answer. Lie more
+    often than you said and I won't notice: I'll name the wrong number just as confidently. Every question goes
+    into narrowing down and none into double-checking, so both answers always leave someone standing and there's
+    no slack to catch the extra lie. An error-correcting code past its limit fails the same way: it "corrects" to
+    the wrong message without complaint. Catching more lies than you can fix costs extra questions.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <h2>How it will work</h2>
     <div class="prose">
       <p><strong>You ask, the page lies.</strong> The page never picks a number. It's an
@@ -145,7 +191,7 @@
         <li>Test: a state is winnable in q questions only if V<sub>q</sub> ≤ 2<sup>q</sup>. Check against the known 1-lie result (10⁶ needs 25).</li></ul></li>
       <li class="done"><b>Small board, 1 lie.</b> Numbers 1–64, one allowed lie, question = "is it in this set?" built by tapping cells or using presets (≥ n, bit k is 1, even).
         <ul><li>Cells colored by lies used, a question history, and the volume meter against 2<sup>q</sup>.</li></ul></li>
-      <li><b>Reverse mode.</b> The page asks using a volume-halving strategy. You answer with Yes/No and may lie up to k times, and it announces your number.</li>
+      <li class="done"><b>Reverse mode.</b> The page asks using a volume-halving strategy. You answer with Yes/No and may lie up to k times, and it announces your number.</li>
       <li><b>Scale and settings.</b> 1–1,000,000 with 0–3 lies (the board becomes a histogram of the lie-count classes), and a "kid mode" with 1–20 and picture questions.</li>
       <li><b>Write-up.</b> The link to codes: each question is a bit, lies are bit errors, and the questioner is designing an error-correcting code one bit at a time. Add the "try this" list and the deep cut.</li>
     </ol>
@@ -325,6 +371,26 @@ const LG = (() => {
     return best.x;
   }
 
+  /* The questioner's guaranteed worst case from a: the fewest questions q
+     for which question() wins against every possible answer sequence. Both
+     answers are followed at every step; positions repeat a lot, so it's quick. */
+  function budget(a) {
+    for (let q = need(a); ; q++) {
+      const seen = new Map();
+      const go = (a, q) => {
+        if (alive(a) <= 1) return true;
+        if (q === 0) return false;
+        const key = a.join(',') + '/' + q;
+        if (!seen.has(key)) {
+          const { yes, no } = children(a, question(a, q));
+          seen.set(key, (!alive(yes) || go(yes, q - 1)) && (!alive(no) || go(no, q - 1)));
+        }
+        return seen.get(key);
+      };
+      if (go(a, q)) return q;
+    }
+  }
+
   /* The same game on actual numbers, for the board: lies[n] is how many
      lies candidate n has used (k + 1 = dead). */
   function answer(lies, inSet, saidYes, k) {
@@ -336,7 +402,7 @@ const LG = (() => {
     return a;
   }
 
-  return { C, weight, volume, alive, fits, need, children, adversary, candidates, question, wins, exactNeed, answer, counts };
+  return { C, weight, volume, alive, fits, need, children, adversary, candidates, question, wins, exactNeed, budget, answer, counts };
 })();
 </script>
 <script src="../core.js"></script>
@@ -352,7 +418,7 @@ const LG = (() => {
   const cells = [];
   for (let n = 1; n <= N; n++) {
     const b = document.createElement('button');
-    b.type = 'button'; b.textContent = n; b.dataset.n = n;
+    b.type = 'button'; b.className = 'c'; b.textContent = n; b.dataset.n = n;
     board.appendChild(b); cells.push(b);
   }
   const start = [N, ...new Array(K).fill(0)];
@@ -469,7 +535,7 @@ const LG = (() => {
     const winner = over ? lies.findIndex(l => l <= K) : -1;
     cells.forEach((b, i) => {
       const l = lies[i];
-      b.className = (l > K ? 'dead' : 'l' + l) + (sel[i] ? ' in' : '') + (i === winner ? ' found' : '');
+      b.className = 'c ' + (l > K ? 'dead' : 'l' + l) + (sel[i] ? ' in' : '') + (i === winner ? ' found' : '');
       b.setAttribute('aria-pressed', sel[i] ? 'true' : 'false');
       b.setAttribute('aria-label', `${i + 1}: ${l > K ? 'ruled out' : l ? 'only if you lied once' : 'no lies needed'}${sel[i] ? ', in question' : ''}`);
     });
@@ -510,6 +576,120 @@ const LG = (() => {
   }
   register(el('game'), { resize: draw });
   reset();
+})();
+</script>
+<script>
+/* ================================================================
+   Reverse mode: you think of a number and may lie up to k times;
+   LG.question asks, highlighting its set on the board.
+   ================================================================ */
+(() => {
+  const N = 64;
+  const el = id => document.getElementById(id);
+  const board = el('r-board'), cells = [];
+  for (let n = 1; n <= N; n++) { const c = document.createElement('span'); c.className = 'c'; c.textContent = n; board.appendChild(c); cells.push(c); }
+  let K = 1, Q, lies, past, cur, end;
+
+  const state = () => LG.counts(lies, K);
+  const swatch = (bg, edge) => `<i style="background:${bg};box-shadow:inset 0 0 0 1px ${edge}"></i>`;
+  function legend() {
+    const parts = [`<span>${swatch('#123024', 'var(--sig)')}no lies</span>`];
+    if (K >= 1) parts.push(`<span>${swatch('#33290f', 'var(--caution)')}1 lie</span>`);
+    if (K >= 2) parts.push(`<span>${swatch('#3a1a15', '#ff9a8a')}2 lies</span>`);
+    parts.push(`<span>${swatch('#10151c', '#3a4655')}ruled out</span>`, `<span><i style="box-shadow:inset 0 0 0 2px var(--ir)"></i>in the question</span>`);
+    el('r-legend').innerHTML = parts.join('');
+  }
+  function restart() {
+    lies = new Array(N).fill(0); past = []; end = null;
+    Q = LG.budget([N, ...new Array(K).fill(0)]);
+    legend(); next();
+  }
+
+  /* Turn the questioner's counts into actual numbers: the lowest x_i numbers of
+     each class. Ruled-out numbers can't change anything, so gaps made only of
+     them are filled in to keep the set to a few readable ranges. */
+  function pick(x) {
+    const set = new Uint8Array(N), want = x.slice();
+    for (let i = 0; i < N; i++) if (lies[i] <= K && want[lies[i]] > 0) { set[i] = 1; want[lies[i]]--; }
+    let last = -1;
+    for (let i = 0; i < N; i++) {
+      if (lies[i] > K) continue;
+      if (set[i] && last >= 0 && set[last]) for (let j = last + 1; j < i; j++) set[j] = 1;
+      last = i;
+    }
+    return set;
+  }
+  function ranges(set) {
+    const runs = [];
+    set.forEach((v, i) => { if (!v) return; const r = runs[runs.length - 1]; if (r && r[1] === i) r[1] = i + 1; else runs.push([i + 1, i + 1]); });
+    return runs.map(([p, r]) => p === r ? `${p}` : r === p + 1 ? `${p}, ${r}` : `${p}–${r}`).join(', ');
+  }
+
+  function next() {
+    const a = state(), alive = LG.alive(a);
+    if (alive === 1) end = { found: lies.findIndex(l => l <= K) };
+    else if (alive === 0) end = { caught: true };
+    else {
+      // plan with the budget while it lasts; past it you must have lied too often, so plan from what's needed
+      const q = Math.max(1, Q - past.length, LG.need(a));
+      cur = pick(LG.question(a, q));
+    }
+    render();
+  }
+  function answer(said) {
+    if (end) return;
+    past.push({ set: cur, said, before: lies });
+    lies = LG.answer(lies, i => cur[i] === 1, said, K);
+    next();
+  }
+  el('r-yes').onclick = () => answer(true);
+  el('r-no').onclick = () => answer(false);
+  el('r-undo').onclick = () => { if (!past.length) return; const p = past.pop(); lies = p.before; end = null; next(); };
+  el('r-new').onclick = restart;
+  el('r-k').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; K = +b.dataset.v; restart(); });
+
+  function render() {
+    el('r-k').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.v === K));
+    const a = state(), T = past.length, f = end && end.found !== undefined ? end.found : -1;
+    cells.forEach((c, i) => {
+      const l = lies[i];
+      c.className = 'c ' + (l > K ? 'dead' : 'l' + l) + (!end && cur[i] ? ' in' : '') + (i === f ? ' found' : '');
+    });
+    el('r-yes').disabled = el('r-no').disabled = !!end;
+    el('r-undo').disabled = !T;
+    el('r-n').textContent = `${T} of at most ${Q}`;
+    el('r-n').className = 'v' + (T > Q ? ' bad' : '');
+    el('r-alive').textContent = LG.alive(a) + (K ? ` (${a.join(' · ')})` : '');
+    const st = el('r-status'), qEl = el('r-q'), setEl = el('r-set');
+    const liedOn = w => past.map((p, t) => (p.set[w] === 1) !== p.said ? t + 1 : 0).filter(Boolean);
+    if (end && end.caught) {
+      qEl.textContent = 'Caught you.';
+      setEl.textContent = `No number from 1 to 64 fits your answers with ${K} lie${K === 1 ? '' : 's'} or fewer.`;
+      st.textContent = `You lied more than ${K === 0 ? 'zero' : K} time${K === 1 ? '' : 's'}. Undo, or start over.`; st.className = 'v bad';
+    } else if (end) {
+      const l = liedOn(f);
+      qEl.textContent = `Your number is ${f + 1}.`;
+      setEl.textContent = l.length ? `You lied on question${l.length > 1 ? 's' : ''} ${l.join(' and ')}.` : K ? `You never lied, but I couldn't be sure of that until now.` : 'No lies allowed, no lies told.';
+      st.textContent = `${T} question${T === 1 ? '' : 's'}${T <= Q ? `, within the ${Q} I promised.` : `: more than ${Q}, so you lied more than ${K} time${K === 1 ? '' : 's'}, and this may be wrong.`}`;
+      st.className = 'v ' + (T <= Q ? 'ok' : 'fog');
+    } else {
+      const n = cur.reduce((t, v) => t + v, 0);
+      qEl.textContent = `Q${T + 1}. Is your number highlighted?`;
+      setEl.textContent = `{${ranges(cur)}}, ${n} number${n === 1 ? '' : 's'}`;
+      st.textContent = T > Q ? `Past ${Q}: you've lied more than ${K} time${K === 1 ? '' : 's'}. Still going.`
+        : !T ? `I'll find it in ${Q} questions or fewer.` : `${Q - T} question${Q - T === 1 ? '' : 's'} left at most.`;
+      st.className = 'v' + (T > Q ? ' bad' : '');
+    }
+    const h = el('r-hist'); h.innerHTML = '';
+    for (let t = past.length - 1; t >= 0; t--) {
+      const p = past[t], it = document.createElement('div'), lie = f >= 0 && (p.set[f] === 1) !== p.said;
+      it.className = 'it';
+      it.innerHTML = `<span class="n">Q${t + 1}</span><span class="q"></span><span class="a${lie ? ' lie' : ''}">${p.said ? 'yes' : 'no'}${lie ? ' ← lie' : ''}</span>`;
+      it.querySelector('.q').textContent = `{${ranges(p.set)}}`;
+      h.appendChild(it);
+    }
+  }
+  restart();
 })();
 </script>
 </body>

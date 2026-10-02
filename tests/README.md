@@ -17,6 +17,7 @@ Look at the screenshots in `tests/out/` after layout changes.
 |---|---|
 | `liar-math.mjs` | Step 1. Volume conservation on random questions; the bound for 10⁶ is 20/25/29/33 for 0–3 lies; exact search for n ≤ 40 matches Pelc's one-lie formula; the questioner beats *every* answer sequence at 10⁶ in exactly the bound (0–3 lies), and in a sweep of other sizes (one lie: always Pelc's number); questioner vs adversary on small boards uses the exact optimum. ~4 s. |
 | `liar-board.mjs` | Step 2. 1–64 with one lie: the hint button always finishes in exactly 10; the six binary digits then hints also take 10; a lopsided first question ("≥ 60") shows "stuck" and needs 11; taps, presets, flip, clear, history wording; 390 px in both themes. |
+| `liar-reverse.mjs` | Step 3. Plays every secret 1–64 by reading the highlighted cells, for 0, 1, 2 lies at random questions: always found within the promised 6 / 10 / 13, and exactly the lies told are marked. One lie too many is never caught (no question can empty the board) and gives a wrong number. Undo; 390 px both themes. |
 
 ## Traitors (`traitors/`)
 

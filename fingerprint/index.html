@@ -7,20 +7,53 @@
 <meta name="description" content="Your phone's motion sensors have tiny factory calibration errors, and those errors are an ID. A local-only demonstration of sensor calibration fingerprinting.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b0f14'/%3E%3Cg fill='none' stroke='%2369c9ff' stroke-width='3'%3E%3Cpath d='M20 44 C18 30 24 18 34 18 C44 18 48 28 46 40'/%3E%3Cpath d='M27 48 C25 36 28 26 34 26 C40 26 40 34 39 44'/%3E%3Cpath d='M34 34 V50'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="stylesheet" href="../lab.css">
+<style>
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px 14px 10px; font-family: var(--mono); font-size: 12.5px; }
+  .ctl .lbl { color: #6d7d90; }
+  .ctl button { font: inherit; color: var(--scr-bright); background: #151c25; border: 1px solid #2d3a4a; border-radius: 8px; padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .ctl button:hover { border-color: #4a5d73; }
+  .ctl button:focus-visible { outline: 1px dashed var(--sig); outline-offset: 2px; }
+  .ctl button[disabled] { opacity: .35; cursor: default; }
+  .ctl button.primary { background: #1f3a2c; border-color: var(--sig); color: var(--sig); }
+  .seg { display: inline-flex; flex-wrap: wrap; }
+  .seg button { border-radius: 0; margin-left: -1px; padding: 7px 11px; }
+  .seg button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 8px 8px 0; }
+  .seg button.on { background: #1f3a2c; border-color: var(--sig); color: var(--sig); position: relative; }
+  .plot { border-top: 1px solid var(--bezel-edge); border-bottom: 1px solid var(--bezel-edge); line-height: 0; }
+  .plot canvas { width: 100%; display: block; }
+  .ros { display: grid; grid-template-columns: repeat(4, 1fr); font-family: var(--mono); }
+  .ro { padding: 10px 14px 12px; border-right: 1px solid var(--bezel-edge); min-width: 0; }
+  .ro:last-child { border-right: 0; }
+  .ro .k { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #6d7d90; }
+  .ro .v { font-size: 14px; color: var(--scr-bright); margin-top: 2px; overflow-wrap: anywhere; }
+  .ro .v.ok { color: var(--sig); } .ro .v.bad { color: var(--fault); } .ro .v.fog { color: var(--caution); }
+  .sinfo { padding: 4px 14px 14px; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; color: var(--scr-text); }
+  .sinfo b { color: var(--scr-bright); font-weight: 500; } .sinfo .warn { color: var(--caution); } .sinfo .bad { color: var(--fault); } .sinfo .ok { color: var(--sig); }
+  .log { margin: 0; padding: 10px 14px 12px; border-top: 1px solid var(--bezel-edge); font-family: var(--mono); font-size: 11px; line-height: 1.55; color: #7f90a4; white-space: pre; overflow-x: auto; max-height: 190px; }
+  .log b { color: var(--scr-bright); font-weight: 400; }
+  .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
+  .local { display: inline-block; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: #2f8f5b; border: 1px solid currentColor; border-radius: 999px; padding: 1px 9px; margin-bottom: 10px; }
+  @media (max-width: 520px) {
+    .ros { grid-template-columns: 1fr 1fr; }
+    .ro:nth-child(2) { border-right: 0; }
+    .ro:nth-child(n+3) { border-top: 1px solid var(--bezel-edge); }
+  }
+</style>
 </head>
 <body>
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 09 <span class="status">blueprint</span></div>
+    <div class="eyebrow">Lab · 09 <span class="status building">building</span></div>
     <h1>Your Phone's Fingerprint Is Its Flaws</h1>
     <div class="lede">
       <p>Every other exhibit on this site treats sensor error as something to cancel. This one
       turns it around. The accelerometer and gyroscope in your phone were each calibrated at the
       factory, and the leftover errors are small, stable, and unique to your phone.</p>
-      <p>That makes them an ID. A web page can read them without asking on many browsers, and the
-      ID survives clearing cookies, private browsing, and a factory reset. This page will show you
-      yours, entirely on your device, and explain the fix that made it harder.</p>
+      <p>That makes them an ID. Before the fixes described below, a web page could read them without
+      asking, and the ID survived clearing cookies, private browsing, and a factory reset. This page
+      shows the method on your own phone's sensor stream, entirely on your device.</p>
     </div>
   </div>
 </header>
@@ -28,7 +61,32 @@
 <main>
 <section>
   <div class="wrap">
-    <div class="panel"><div class="blueprint"><div><b>Instrument not built yet</b>Sensor capture, the calibration estimate, and your fingerprint go here. See the build plan below.</div></div></div>
+    <h2>Capture</h2>
+    <div class="prose">
+      <p>Press <b>Start sensors</b>, lay the phone flat on a table, and leave it alone for a couple of
+      seconds. The log shows every number the browser hands this page, at full precision. No sensor
+      handy? <b>Simulate a phone</b> feeds the same pipeline from a made-up phone with known flaws.</p>
+    </div>
+    <div class="panel" id="cap">
+      <div class="ctl">
+        <button id="cap-start" class="primary">Start sensors</button>
+        <button id="cap-sim">Simulate a phone</button>
+        <button id="cap-stop" disabled>Stop</button>
+      </div>
+      <div class="sinfo" id="cap-msg"><span class="local">runs on this device · nothing is sent</span><br>Waiting. Nothing is read until you press a button.</div>
+      <div class="plot"><canvas id="cap-cv" aria-label="Live trace of the accelerometer and gyroscope readings."></canvas></div>
+      <div class="ros">
+        <div class="ro"><div class="k">source</div><div class="v" id="cap-src">—</div></div>
+        <div class="ro"><div class="k">samples</div><div class="v" id="cap-n">0</div></div>
+        <div class="ro"><div class="k">rate</div><div class="v" id="cap-rate">—</div></div>
+        <div class="ro"><div class="k">phone is</div><div class="v" id="cap-still">—</div></div>
+      </div>
+      <pre class="log" id="cap-log" aria-label="Most recent raw samples">no samples yet</pre>
+    </div>
+    <p class="hint">Accelerations are in m/s² and include gravity, which is why a phone lying flat reads about 9.8
+    on one axis. Rotation rates are in degrees per second; a gyroscope at rest should read zero, and
+    whatever it reads instead is its error. Real phones haven't been tested with this page yet, only
+    simulated sensor data.</p>
   </div>
 </section>
 
@@ -44,8 +102,8 @@
       the browser. So the values the page sees sit on a grid whose spacing <em>is</em> that
       gain. Find the spacing (a greatest-common-divisor search over sample differences) and you
       have recovered the factory calibration without any special access.</p>
-      <p><strong>The result:</strong> a short hex fingerprint built from the recovered gains and
-      offsets, shown alongside how many bits of identity it probably carries. Run it twice and
+      <p><strong>The result:</strong> a short hex fingerprint built from the recovered gains,
+      shown alongside how many bits of identity it might carry. Run it twice and
       it should match. Run it on a different phone and it shouldn't.</p>
       <p><strong>Privacy:</strong> nothing is sent anywhere. The page has no network calls, and
       the fingerprint is only displayed, never stored.</p>
@@ -57,7 +115,7 @@
   <div class="wrap">
     <h2>Build plan</h2>
     <ol class="plan">
-      <li><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
+      <li class="done"><b>Sensor capture.</b> Permission flow (<code>DeviceMotionEvent.requestPermission()</code> on iOS 13+, none needed on most Android browsers), a still-detector, and a raw-sample log view. On desktop, say plainly that there's no sensor.</li>
       <li><b>Offset and gain from gravity.</b> Flat, then face down, then on an edge: fit per-axis bias and scale against ±1&nbsp;g, and show the error vector next to a perfect sensor.</li>
       <li><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
       <li><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
@@ -72,8 +130,8 @@
     <h2>The deep cut</h2>
     <div class="deep">
       <p>Zhang, Beresford, and Sheret presented SensorID at IEEE Security &amp; Privacy in 2019.
-      They could fingerprint iPhones from about 100 motion samples, in under a second, with
-      roughly 67 bits of entropy. Apple fixed it in iOS 12.2 by adding random noise to the
+      They could fingerprint iPhones from fewer than 100 motion samples, collected and processed in under a second, with
+      an estimated 67 bits of entropy for the iPhone 6S. Apple fixed it in iOS 12.2 by adding random noise to the
       sensor output, and starting with iOS 13, Safari asks permission before sharing motion data at all.</p>
       <p>The broader idea is older. Researchers had already shown that accelerometer
       imperfections could identify devices in 2014. Manufacturing tolerances that engineers
@@ -88,6 +146,249 @@
   </div>
 </section>
 </main>
-<footer><div class="wrap">Lab · 09 · single file + shared <a href="../lab.css">lab.css</a> · <a href="https://github.com/jkastl/tolerance">source</a></div></footer>
+<footer><div class="wrap">Lab · 09 · single file + shared <a href="../lab.css">lab.css</a> and <a href="../core.js">core.js</a> · <a href="https://github.com/jkastl/tolerance">source</a></div></footer>
+<script src="../core.js"></script>
+<script>
+/* ================================================================
+   FP: the math, kept free of the page so tests can call it directly
+   ================================================================ */
+const FP = (() => {
+  const G0 = 9.80665;                                   // standard gravity, m/s²
+  function rng(seed) {                                  // mulberry32
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function gaussR(r) { let u = 0; while (!u) u = r(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r()); }
+
+  /* ---- a made-up phone. Each axis: the ADC counts A = round(S·true + B + noise) with a true
+     sensitivity S and raw bias B; the factory calibration then reports G·A + o. G and o are the
+     per-device constants a page can try to recover. Six axes: accel x,y,z (m/s²), gyro x,y,z (°/s). */
+  const NOMINAL = [G0 / 4096, G0 / 4096, G0 / 4096, 1 / 16.4, 1 / 16.4, 1 / 16.4];
+  function makePhone(seed) {
+    const r = rng(seed), u = (a) => (2 * r() - 1) * a;
+    const axes = NOMINAL.map((nom, i) => {
+      const acc = i < 3;
+      const G = nom * (1 + u(0.01));                    // calibration gain: within ±1% of nominal
+      const scaleErr = u(0.005);                        // what calibration missed: ±0.5% scale
+      const S = (1 + scaleErr) / G;                     // counts per unit
+      const B = u(acc ? 0.6 : 3) / nom;                 // raw bias, in counts
+      const bias = u(acc ? 0.15 : 0.5);                 // offset left after calibration
+      const o = bias - G * B;
+      return { G, S, B, o, scaleErr, bias, sigma: acc ? 1.2 : 1.5 };
+    });
+    return { seed, axes };
+  }
+  // one sample for true acceleration a[3] (m/s², gravity included) and rotation w[3] (°/s)
+  function phoneSample(ph, a, w, r) {
+    return ph.axes.map((ax, i) => {
+      const t = i < 3 ? a[i] : w[i - 3];
+      const A = Math.round(ax.S * t + ax.B + ax.sigma * gaussR(r));
+      return ax.G * A + ax.o;
+    });
+  }
+  // the six faces, as true gravity vectors; a scripted capture visits them in turn
+  const FACES = [[0, 0, G0], [0, 0, -G0], [G0, 0, 0], [-G0, 0, 0], [0, G0, 0], [0, -G0, 0]];
+  function script(ph, seed, perFace = 90, move = 30) {
+    const r = rng(seed ^ 0x9e3779b9), out = [];
+    for (let f = 0; f < FACES.length; f++) {
+      for (let k = 0; k < perFace; k++) out.push(phoneSample(ph, FACES[f], [0, 0, 0], r));
+      if (f === FACES.length - 1) break;
+      const A = FACES[f], B = FACES[f + 1];
+      for (let k = 0; k < move; k++) {                 // a wobbly turn to the next face
+        const s = (k + 1) / (move + 1), sw = Math.sin(Math.PI * s);
+        let v = A.map((x, i) => x * (1 - s) + B[i] * s);
+        const n = Math.hypot(...v) || 1; v = v.map(x => x * G0 / n + 1.5 * sw * gaussR(r));
+        out.push(phoneSample(ph, v, [90 * sw + 8 * gaussR(r), 40 * sw * gaussR(r), 20 * gaussR(r) * sw], r));
+      }
+    }
+    return out;
+  }
+
+  /* ---- still detector: per-axis spread of the accelerometer over a short window */
+  const STILL_WIN = 24, STILL_ACC = 0.15, STILL_GYRO = 4;
+  function isStill(win) {
+    if (win.length < STILL_WIN) return false;
+    for (let i = 0; i < 3; i++) {
+      let m = 0; for (const s of win) m += s[i]; m /= win.length;
+      let v = 0; for (const s of win) v += (s[i] - m) ** 2;
+      if (Math.sqrt(v / win.length) > STILL_ACC) return false;
+    }
+    if (win[0][3] != null) {
+      for (const s of win) if (Math.hypot(s[3], s[4], s[5]) > STILL_GYRO) return false;
+    }
+    return true;
+  }
+
+  return { G0, NOMINAL, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+})();
+
+/* ================================================================
+   capture: real devicemotion events and the simulator feed the same ingest()
+   ================================================================ */
+const CAP = {
+  samples: [],          // [ax, ay, az, gx, gy, gz] (gyro entries null when absent)
+  still: [],            // parallel flags from the still detector
+  source: null,         // 'sensor' | 'sim'
+  listening: false, nullEvents: 0, intervals: [], stillRun: 0, simTimer: 0, simPhone: null, simSeed: 0,
+  MAX: 6000,
+};
+const capEls = {
+  start: $('#cap-start'), sim: $('#cap-sim'), stop: $('#cap-stop'), msg: $('#cap-msg'),
+  src: $('#cap-src'), n: $('#cap-n'), rate: $('#cap-rate'), still: $('#cap-still'), log: $('#cap-log'), cv: $('#cap-cv'),
+};
+const LOCAL = '<span class="local">runs on this device · nothing is sent</span><br>';
+function capMsg(html) { capEls.msg.innerHTML = LOCAL + html; }
+
+function ingest(s, intervalMs) {
+  CAP.samples.push(s);
+  if (CAP.samples.length > CAP.MAX) CAP.samples.splice(0, CAP.samples.length - CAP.MAX);
+  if (intervalMs > 0) { CAP.intervals.push(intervalMs); if (CAP.intervals.length > 60) CAP.intervals.shift(); }
+  const st = FP.isStill(CAP.samples.slice(-FP.STILL_WIN));
+  CAP.still.push(st);
+  if (CAP.still.length > CAP.MAX) CAP.still.splice(0, CAP.still.length - CAP.MAX);
+  CAP.stillRun = st ? CAP.stillRun + 1 : 0;
+  CAP.dirty = true;
+}
+
+function onMotion(e) {
+  const a = e.accelerationIncludingGravity, w = e.rotationRate;
+  const ok = v => typeof v === 'number' && isFinite(v);
+  if (!a || !ok(a.x) || !ok(a.y) || !ok(a.z)) { CAP.nullEvents++; return; }   // counted even before Start
+  if (!CAP.listening) return;
+  const hasW = w && ok(w.alpha) && ok(w.beta) && ok(w.gamma);
+  // rotationRate alpha/beta/gamma are rotations about the z, x and y axes; store them as x, y, z
+  ingest([a.x, a.y, a.z, hasW ? w.beta : null, hasW ? w.gamma : null, hasW ? w.alpha : null], e.interval);
+  if (CAP.source !== 'sensor') {
+    CAP.source = 'sensor';
+    capMsg(hasW ? 'Receiving the accelerometer and gyroscope. Lay the phone flat and leave it still.'
+                : 'Receiving the accelerometer (no gyroscope data from this browser). Lay the phone flat and leave it still.');
+  }
+}
+
+function resetCapture() {
+  CAP.samples = []; CAP.still = []; CAP.intervals = []; CAP.stillRun = 0; CAP.source = null;
+  clearInterval(CAP.simTimer); CAP.simTimer = 0; CAP.dirty = true;
+}
+
+async function startSensors() {
+  resetCapture();
+  if (!('DeviceMotionEvent' in window)) {
+    capMsg('<span class="bad">This browser has no motion-sensor API at all.</span> On a desktop or laptop that is normal. Try a phone, or press <b>Simulate a phone</b>.');
+    return;
+  }
+  if (!window.isSecureContext) {
+    capMsg('<span class="bad">Browsers only share motion data with secure (https) pages.</span>');
+    return;
+  }
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {   // iOS 13+ Safari
+    let res = 'denied';
+    try { res = await DeviceMotionEvent.requestPermission(); } catch (err) { res = 'error'; }
+    if (res !== 'granted') {
+      capMsg('<span class="bad">Motion access wasn\'t granted.</span> Safari only asks after a tap; if it doesn\'t ask again, reload the page and press <b>Start sensors</b>.');
+      return;
+    }
+  }
+  CAP.listening = true;
+  capEls.stop.disabled = false;
+  capMsg('Listening for motion data…');
+  const t0 = CAP.samples.length;
+  setTimeout(() => {
+    if (CAP.listening && CAP.source === null && CAP.samples.length === t0) {
+      capMsg('<span class="warn">No motion sensor reached this page.</span> ' +
+        (CAP.nullEvents ? 'The browser answered, but with empty readings: it has no sensor to read. ' : 'No readings arrived at all. ') +
+        'On a desktop or laptop that is expected. On a phone, the browser may be blocking motion access. ' +
+        'Press <b>Simulate a phone</b> to see the rest of the page work.');
+    }
+  }, 2000);
+}
+
+function stopAll() {
+  CAP.listening = false; clearInterval(CAP.simTimer); CAP.simTimer = 0;
+  capEls.stop.disabled = true;
+  if (CAP.samples.length) capMsg(`Stopped with ${CAP.samples.length} samples.`);
+}
+
+/* simulator: a scripted capture of one made-up phone visiting all six faces, fed in at ~6× real time */
+function simulate(seed, instant = false) {
+  stopAll(); resetCapture();
+  CAP.simSeed = seed == null ? (Math.random() * 2 ** 32) >>> 0 : seed;
+  CAP.simPhone = FP.makePhone(CAP.simSeed);
+  const all = FP.script(CAP.simPhone, CAP.simSeed + 1);
+  CAP.source = 'sim';
+  capMsg(`Simulating phone <b>#${(CAP.simSeed % 10000).toString().padStart(4, '0')}</b>: flat, face down, then each edge in turn. Its flaws are made up; your phone's are real.`);
+  if (instant) { for (const s of all) ingest(s, 1000 / 60); return; }
+  let i = 0;
+  capEls.stop.disabled = false;
+  CAP.simTimer = setInterval(() => {
+    for (let k = 0; k < 6 && i < all.length; k++) ingest(all[i++], 1000 / 60);
+    if (i >= all.length) { clearInterval(CAP.simTimer); CAP.simTimer = 0; capEls.stop.disabled = true; }
+  }, 1000 / 60);
+}
+
+window.addEventListener('devicemotion', onMotion);
+capEls.start.addEventListener('click', startSensors);
+capEls.sim.addEventListener('click', () => simulate());
+capEls.stop.addEventListener('click', stopAll);
+
+/* ---- drawing: a rolling trace (last 240 samples), accelerometer above, gyroscope below */
+const AXC = [COL.fault, COL.sig, COL.ir];
+function fmtNum(v) { return v == null ? '—' : (v >= 0 ? ' ' : '') + v.toPrecision(12); }
+function drawCapture() {
+  const { ctx, w, h } = fit(capEls.cv, 0.34, 170, 240);
+  ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, w, h);
+  const S = CAP.samples.slice(-240);
+  const hasG = S.some(s => s[3] != null);
+  const strips = hasG ? [[0, 0.58], [0.58, 1]] : [[0, 1]];
+  const L = 34, R = w - 8;
+  strips.forEach(([f0, f1], si) => {
+    const y0 = f0 * h + 16, y1 = f1 * h - 6;
+    const base = si * 3;
+    let lim = si === 0 ? 12 : 5;
+    if (si === 1) for (const s of S) for (let i = 3; i < 6; i++) lim = Math.max(lim, Math.abs(s[i]) * 1.1);
+    const Y = v => y0 + (y1 - y0) * (1 - (v + lim) / (2 * lim));
+    ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(L, Y(0)); ctx.lineTo(R, Y(0)); ctx.stroke();
+    ctx.fillStyle = COL.text; ctx.font = font(10);
+    ctx.fillText(si === 0 ? 'accel m/s²' : 'gyro °/s', L, y0 - 4);
+    ctx.textAlign = 'right';
+    ctx.fillText(lim.toFixed(0), L - 4, y0 + 8); ctx.fillText('−' + lim.toFixed(0), L - 4, y1);
+    ctx.textAlign = 'left';
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = AXC[i]; ctx.lineWidth = 1.4; ctx.beginPath();
+      S.forEach((s, k) => { const x = L + (R - L) * k / 239, y = Y(clamp(s[base + i], -lim, lim)); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+    }
+    ctx.textAlign = 'right';
+    ['x', 'y', 'z'].forEach((n, i) => { ctx.fillStyle = AXC[i]; ctx.fillText(n, R - (2 - i) * 14, y0 - 4); });
+    ctx.textAlign = 'left';
+  });
+  if (!S.length) { ctx.fillStyle = COL.text; ctx.font = font(12); ctx.textAlign = 'center'; ctx.fillText('no samples yet', w / 2, h / 2); ctx.textAlign = 'left'; }
+}
+function updateCapture() {
+  const n = CAP.samples.length;
+  capEls.src.textContent = CAP.source === 'sensor' ? 'your sensors' : CAP.source === 'sim' ? 'simulated' : '—';
+  capEls.n.textContent = n.toLocaleString('en-US');
+  if (CAP.intervals.length) {
+    const m = CAP.intervals.reduce((a, b) => a + b, 0) / CAP.intervals.length;
+    capEls.rate.textContent = (1000 / m).toFixed(0) + ' Hz';
+  } else capEls.rate.textContent = '—';
+  if (!n) { capEls.still.textContent = '—'; capEls.still.className = 'v'; }
+  else if (CAP.stillRun >= 60) { capEls.still.textContent = 'still'; capEls.still.className = 'v ok'; }
+  else if (CAP.stillRun > 0) { capEls.still.textContent = 'settling…'; capEls.still.className = 'v fog'; }
+  else { capEls.still.textContent = 'moving'; capEls.still.className = 'v bad'; }
+  const last = CAP.samples.slice(-8);
+  capEls.log.innerHTML = last.length
+    ? '<b>       accel x          accel y          accel z     │      gyro x           gyro y           gyro z</b>\n' +
+      last.map(s => s.slice(0, 3).map(fmtNum).join(' ') + ' │ ' + s.slice(3).map(fmtNum).join(' ')).join('\n')
+    : 'no samples yet';
+}
+const capView = register($('#cap'), {
+  tick() { if (CAP.dirty) { CAP.dirty = false; updateCapture(); drawCapture(); } },
+  resize() { drawCapture(); },
+});
+io.observe($('#cap'));
+drawCapture();
+</script>
 </body>
 </html>

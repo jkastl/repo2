@@ -42,3 +42,14 @@ Look at the screenshots in `tests/out/` after layout changes.
 | `tearproof-recover.mjs` | Demo button, one tag short, sloppy typing, duplicates, wrong set, bad checksum, forged tag with 0/1/2 spares, camera fallback, and a mocked BarcodeDetector + fake camera. |
 | `tearproof-print.mjs` | Print media shows only `#sheet` (the tags); screenshot of the cut sheet. |
 | `tearproof-writeup.mjs` | Comparison table at 390 px in both themes; backup-mode leak counter; front-page statuses. |
+
+## Your Phone's Fingerprint (`fingerprint/`)
+
+Headless Chromium has no motion sensors (it answers with empty readings, the desktop case), so these tests
+dispatch synthetic `DeviceMotionEvent`s built by `fingerprint-lib.mjs`: each axis reports `step·A + offset`
+for whole-number ADC counts `A`, with known step, offset, scale error, bias and noise. Each file prints
+`ok`/`FAIL` lines and exits non-zero on a failure. None of this has been run on a real phone yet.
+
+| file | checks |
+|---|---|
+| `fingerprint-capture.mjs` | Step 1. 1200/390 px in both themes; desktop "no sensor" message; synthetic events stored at full precision on all six axes; still/moving detector; rate from `interval`; accelerometer-only events; mocked iOS `requestPermission` granted and denied; the simulator. |

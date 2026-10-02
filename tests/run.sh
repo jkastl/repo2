@@ -3,7 +3,7 @@
 cd "$(dirname "$0")" || exit 1
 status=0
 for f in *.mjs; do
-  case "$f" in qrdump*) continue ;; esac
+  case "$f" in qrdump*|*-lib.mjs) continue ;; esac
   echo "=== $f"; node "$f" || status=1
 done
 for f in *.py; do echo "=== $f"; python3 "$f" || status=1; done

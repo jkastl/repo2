@@ -53,6 +53,7 @@
   .idrow .hex.wait { color: #4d5b6c; }
   .idrow .sub { font-size: 12px; color: var(--scr-text); margin-top: 2px; }
   @media (max-width: 520px) { .idrow .hex { font-size: 18px; } .idrow canvas { width: 64px; height: 64px; } }
+  .refs code, .deep code { font-family: var(--mono); font-size: .88em; overflow-wrap: anywhere; }
   .hint { font-size: 14px; color: var(--ink-dim); max-width: 680px; margin-top: 10px; }
   .local { display: inline-block; font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; color: #2f8f5b; border: 1px solid currentColor; border-radius: 999px; padding: 1px 9px; margin-bottom: 10px; }
   @media (max-width: 520px) {
@@ -66,12 +67,13 @@
 <div class="wrap crumb"><a href="../">← Tolerance</a> · <a href="../#lab">Lab</a></div>
 <header>
   <div class="wrap">
-    <div class="eyebrow">Lab · 09 <span class="status building">building</span></div>
+    <div class="eyebrow">Lab · 09 <span class="status live">live</span></div>
     <h1>Your Phone's Fingerprint Is Its Flaws</h1>
     <div class="lede">
       <p>Every other exhibit on this site treats sensor error as something to cancel. This one
-      turns it around. The accelerometer and gyroscope in your phone were each calibrated at the
-      factory, and the leftover errors are small, stable, and unique to your phone.</p>
+      turns it around. Many phones' motion sensors are calibrated one by one at the factory, to cancel
+      each unit's manufacturing flaws, and the numbers that calibration leaves behind are small, stable, and
+      unique to the phone.</p>
       <p>That makes them an ID. Before the fixes described below, a web page could read them without
       asking, and the ID survived clearing cookies, private browsing, and a factory reset. This page
       shows the method on your own phone's sensor stream, entirely on your device.</p>
@@ -130,7 +132,7 @@
     </div>
     <p class="hint">The gain check assumes standard gravity, 9.80665&nbsp;m/s². Real gravity runs from about
     9.78&nbsp;m/s² at the equator to 9.83 at the poles, so any gain error smaller than about ±0.3% could be
-    your latitude rather than your sensor. Offsets also drift as the phone warms up. Both are why
+    your latitude rather than your sensor. Offsets can also drift with temperature. Both are why
     the next step doesn't lean on gravity at all.</p>
   </div>
 </section>
@@ -243,26 +245,69 @@
     the switch on <b>as delivered</b>, a defense was already there. The walk is simulated with the same phone
     as the capture (or a stock one), 36 steps in 20 seconds. How much noise Apple actually adds isn't public;
     half a step is this page's choice, about the least that hides the grid.</p>
+    <div class="try">
+      <h3>Try this</h3>
+      <ol>
+        <li>Press <b>Simulate a phone</b>, wait for the fingerprint, press <b>Keep this one</b>, then
+        <b>Same simulated phone again</b>. Fresh noise, every reading different, same ID. Now try
+        <b>Another simulated phone</b>.</li>
+        <li>Look at the raw log during a simulation. The digits look like noise, yet every difference between two
+        readings on an axis is a whole number of that axis's step. Pick an axis in <b>The grid</b> and watch the
+        fold collapse into one spike.</li>
+        <li>Switch the defense to <b>+ noise</b>. The spikes melt into a smooth hump, the fold goes flat, and the
+        fingerprint disappears. The walk still counts 36 steps.</li>
+        <li>Switch to <b>round to 0.1</b>. A grid comes back on every axis, but it's 0.1 exactly, 98.07 counts per g,
+        and it would be the same on any phone.</li>
+        <li>On a phone: press <b>Start sensors</b>, lay it flat for five seconds, then turn it over. Which of the
+        three cases does the grid panel show: your own grid, the browser's 0.1, or none?</li>
+        <li>For the gravity check, capture only flat and face down on a book, then lift one end of the book a
+        little and hold it flat-side up again. The amber y offset drifts away from where it was. That's the tilt,
+        not the sensor, which is why a careful calibration turns each axis both ways.</li>
+      </ol>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>How it will work</h2>
+    <h2>How it works</h2>
     <div class="prose">
-      <p><strong>Capture:</strong> lay the phone flat and still for a few seconds, then flip it face
-      down. The page records <code>devicemotion</code> samples. Gravity is a known 9.81&nbsp;m/s²,
-      so any difference between what the sensor reports and 1&nbsp;g is error.</p>
-      <p><strong>The trick from the SensorID paper:</strong> the raw sensor outputs whole-number ADC
-      counts, and the phone scales them by a per-device calibration gain before handing them to
-      the browser. So the values the page sees sit on a grid whose spacing <em>is</em> that
-      gain. Find the spacing (a greatest-common-divisor search over sample differences) and you
-      have recovered the factory calibration without any special access.</p>
-      <p><strong>The result:</strong> a short hex fingerprint built from the recovered gains,
-      shown alongside how many bits of identity it might carry. Run it twice and
-      it should match. Run it on a different phone and it shouldn't.</p>
-      <p><strong>Privacy:</strong> nothing is sent anywhere. The page has no network calls, and
-      the fingerprint is only displayed, never stored.</p>
+      <p><strong>A stable error is information.</strong> Calibration exists because no two sensors come out of
+      the factory alike, so on many phones each one is measured and given its own correction. That correction makes the readings
+      accurate, and it also makes them <em>distinctive</em>, because the correction itself is different for
+      every unit and never changes. Accuracy needs the correction to be applied; privacy needs nobody to be able
+      to read it back. The grid trick reads it back.</p>
+      <p><strong>Why the grid gives so much away.</strong> Gravity can only tell you a gain to a fraction of a
+      percent: your latitude alone shifts it by up to about 0.3%. The grid doesn't depend on gravity at all. Every gap
+      between two readings is an exact whole number of steps, so a few hundred readings pin the step far more
+      tightly than gravity can, and the answer comes out the same every time. That
+      combination, precise and repeatable, is what makes an identifier. A slow drift in the offset, by contrast, is
+      useless for tracking, because it doesn't repeat.</p>
+      <p><strong>The same stream, used honestly.</strong> <a href="https://jkastl.github.io/ride-report/">Ride Report</a>
+      turns the same motion-sensor stream into a ride-quality meter on a tray table, and
+      <a href="https://jkastl.github.io/scroll-report/">Scroll Report</a> into a rolling 3D seismograph of your
+      phone's motion. Both care about how readings <em>change</em>: bumps, sway, turbulence. Neither cares exactly which
+      grid point a reading lands on. That gap between what
+      motion features need and what fingerprinting needs is why the fixes are cheap: blur the last digit and
+      every honest use still works. Rounding to 0.1&nbsp;m/s² is the heavier hand: it erases any vibration
+      smaller than that.</p>
+      <p><strong>Fingerprinting in general.</strong> Browsers leak identity through anything that differs between
+      devices and stays put: screen size, installed fonts, how a graphics card draws a curve, how the audio stack
+      renders a test tone. Many of those shift with a software update or a settings change. Calibration is unusual
+      because it's hardware: it survives clearing cookies, private windows and a factory reset. The fix had to
+      come from the platform (Apple's noise, the browsers' rounding and permission prompts), because no page
+      can protect you from another page.</p>
+      <p><strong>What this page can't see.</strong> The SensorID fingerprint for iPhones came from the gyroscope
+      and the magnetometer. <code>devicemotion</code> doesn't include the magnetometer, so this page uses the
+      accelerometer and gyroscope instead. Real calibrations can also mix a little of one axis into another; this
+      page's grid search assumes each axis is scaled on its own, so a phone that mixes axes would show no clean
+      grid here even without a defense.</p>
+      <p><strong>What to expect on your phone.</strong> If the sources below are right, a current Chromium-based
+      browser should show the browser's 0.1 grid, and an iPhone on iOS 12.2 or later shouldn't show a grid of its own. A grid of your
+      phone's own would mean neither defense reached this page. None of this has been tried on a real phone yet:
+      every number on this page so far comes from simulated sensors.</p>
+      <p><strong>Privacy.</strong> Everything runs on your device. The page makes no network requests, stores
+      nothing, and the fingerprint exists only in this tab until you close or reload it.</p>
     </div>
   </div>
 </section>
@@ -276,7 +321,7 @@
       <li class="done"><b>Grid recovery.</b> Estimate the ADC step per axis from the lattice the samples fall on: approximate GCD over pairwise differences, with a histogram that makes the lattice visible.</li>
       <li class="done"><b>Fingerprint and stability.</b> Quantize the recovered values into a short ID, show it as a hex string and a small generated glyph, run a repeat-capture check, and give a rough entropy estimate.</li>
       <li class="done"><b>The defense.</b> A toggle that adds the kind of noise Apple added in iOS 12.2, and the grid disappears. Explain why noise defeats the GCD trick while barely hurting motion features like step counting.</li>
-      <li><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
+      <li class="done"><b>Write-up.</b> Tie it back to Ride Report and Scroll Report (the same sensor stream), fingerprinting in general, and the lesson: a stable error is information.</li>
     </ol>
   </div>
 </section>
@@ -285,19 +330,29 @@
   <div class="wrap">
     <h2>The deep cut</h2>
     <div class="deep">
-      <p>Zhang, Beresford, and Sheret presented SensorID at IEEE Security &amp; Privacy in 2019.
-      They could fingerprint iPhones from fewer than 100 motion samples, collected and processed in under a second, with
-      an estimated 67 bits of entropy for the iPhone 6S. Apple fixed it in iOS 12.2 by adding random noise to the
-      sensor output, and starting with iOS 13, Safari asks permission before sharing motion data at all.</p>
-      <p>The broader idea is older. Researchers had already shown that accelerometer
-      imperfections could identify devices in 2014. Manufacturing tolerances that engineers
-      calibrate away for accuracy are exactly what make each unit distinguishable.</p>
+      <p>Zhang, Beresford, and Sheret presented SensorID at IEEE Security &amp; Privacy in 2019. From fewer
+      than 100 motion samples, collected and processed in under a second, they could build a fingerprint that
+      didn't change over time or after a factory reset. On iOS it combined the gyroscope and the magnetometer,
+      both calibrated per device at the factory; from data on 870 iOS devices they estimated about 67 bits of
+      entropy for the iPhone 6S. The accelerometers of the Google Pixel 2 and Pixel 3 could be fingerprinted
+      the same way, though with less entropy.</p>
+      <p>Their suggested fix was to add uniformly distributed random noise to the ADC outputs before the
+      calibration is applied. Apple shipped a fix in iOS 12.2 (CVE-2019-8541), described by the authors as adding
+      random noise; the same release turned off Safari's motion access by default, and iOS 13 replaced that with
+      the <code>requestPermission()</code> prompt this page uses. The W3C spec now requires both a permission
+      step and readings limited to 0.1&nbsp;m/s² and 0.1&nbsp;°/s.</p>
+      <p>The broader idea is older. In 2014 Bojinov, Michalevsky, Nakibly and Boneh measured more than 10,000
+      phones and showed that accelerometer calibration errors, readable from JavaScript without any permission,
+      could identify a device. Manufacturing tolerances that engineers calibrate away for accuracy are exactly
+      what make each unit distinguishable.</p>
     </div>
     <h3>Reading</h3>
     <ul class="refs">
-      <li>J. Zhang, A. R. Beresford &amp; I. Sheret, “SensorID: Sensor calibration fingerprinting for smartphones,” IEEE S&amp;P, 2019.</li>
+      <li>J. Zhang, A. R. Beresford &amp; I. Sheret, “SensorID: Sensor calibration fingerprinting for smartphones,” IEEE Symposium on Security and Privacy, 2019. doi:10.1109/SP.2019.00072.</li>
       <li>H. Bojinov, Y. Michalevsky, G. Nakibly &amp; D. Boneh, “Mobile device identification via sensor fingerprinting,” arXiv:1408.1416, 2014.</li>
-      <li>W3C, <i>DeviceOrientation Event Specification</i>, privacy considerations.</li>
+      <li>Apple, “About the security content of iOS 12.2” (CVE-2019-8541: “A privacy issue existed in motion sensor calibration”), 2019.</li>
+      <li>W3C, <i>DeviceOrientation Event Specification</i>: security and privacy considerations, and the 0.1&nbsp;m/s² and 0.1&nbsp;°/s precision limits.</li>
+      <li>Chromium source, <code>services/device/generic_sensor/platform_sensor_util.h</code>: the rounding multiples and the comment explaining them (crbug.com/1018180).</li>
     </ul>
   </div>
 </section>

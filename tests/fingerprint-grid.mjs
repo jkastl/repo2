@@ -78,6 +78,28 @@ await run('six faces, drift + mixing + float32', { drift: 0.01, mix: 0.01, f32: 
   const R = await grid(S);
   check(R.every(g => g.ok && g.rounded && Math.abs(g.step - 0.1) < 1e-9), `rounded to 0.1: all six axes flagged as browser rounding (${R.map(g => g.rounded).join(',')})`);
 }
+// what an iPhone in Safari sent (October 2026): accelerometer readings on an exact 1/65536 g grid, the gyroscope
+// with no grid. Rebuild that: noisy accelerometer values stored in steps of 9.80665/65536, gyroscope with noise
+// added before calibration. Expect "format" on the accelerometer, no grid on the gyroscope, no ID.
+{
+  const q = 9.80665 / 65536, r = rng(4), S = [];
+  const ph = makeSynth(4, { noiseDefense: true });
+  for (let k = 0; k < 400; k++) {
+    const v = synthSample(ph, [0.02 * Math.sin(k / 5), 0.01, G0, 0, 0, 0], r);
+    S.push([...v.slice(0, 3).map(x => Math.round((x + 0.0004 * (r() - 0.5)) / q) * q), ...v.slice(3)]);
+  }
+  const R = await grid(S);
+  const F = await p.evaluate(S => FP.fingerprint(FP.gridAll(S)), S);
+  const fmt = await p.evaluate(S => FP.gridAll(S).map(g => g.format || null), S);
+  check(R.slice(0, 3).every(g => g.ok && g.rounded) && fmt.slice(0, 3).every(f => f === '1/65536 g'), `iPhone-like accelerometer: flagged as format "${fmt[0]}"`);
+  check(R.slice(3).every(g => !g.ok), 'iPhone-like gyroscope: no grid');
+  check(!F.ready && F.axes.length === 0, 'iPhone-like capture: no fingerprint');
+  await p.evaluate(() => { CAP.samples = []; });
+  await p.click('#cap-start'); await dispatch(p, S); await sleep(900);
+  check(/nothing to fingerprint/.test(await p.textContent('#fp-sub')) && /format/.test(await p.textContent('#grid-tab')), 'iPhone-like capture in the panel: "format" rows, and the ID panel says there is nothing to fingerprint');
+  check(await p.evaluate(() => [FP.formatGrid(9.80665 / 4096 * 1.003, 'acc'), FP.formatGrid(0.0610352, 'gyro'), FP.formatGrid(1 / 16.4, 'gyro')].every(x => x === null)),
+    'a calibrated-looking step is never called a format');
+}
 check(wrong === 0, `never a confidently wrong step (${wrong} axes off by more than 1%)`);
 const t = await p.evaluate(S => { const t0 = performance.now(); FP.gridAll(S); return performance.now() - t0; }, Array.from({ length: 5 }, (_, k) => synthScript(makeSynth(k + 1, { mix: 0.005 }), k, 90)).flat().slice(0, 3000));
 check(t < 1000, `3000 samples analysed in ${t.toFixed(0)} ms`);

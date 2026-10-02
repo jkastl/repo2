@@ -108,8 +108,8 @@
     </div>
     <p class="hint">Accelerations are in m/s² and include gravity, which is why a phone lying flat reads about 9.8
     on one axis. Rotation rates are in degrees per second; a gyroscope at rest should read zero, and
-    whatever it reads instead is its error. Real phones haven't been tested with this page yet, only
-    simulated sensor data.</p>
+    whatever it reads instead is its error. So far the page has been tried on one real phone, an iPhone;
+    everything else was tested with simulated sensor data.</p>
   </div>
 </section>
 
@@ -313,10 +313,13 @@
       that mix are fine. It skips the paper's last trick: on iPhones with an M-series motion coprocessor the
       matrix entries are whole multiples of 2<sup>−16</sup>&nbsp;°/s, which let the authors round a slightly blurred
       estimate (Safari's offset drifted) back to the exact values.</p>
-      <p><strong>What to expect on your phone.</strong> If the sources below are right, a current Chromium-based
-      browser should show the browser's 0.1 grid, and an iPhone on iOS 12.2 or later shouldn't show a grid of its own. A grid of your
-      phone's own would mean neither defense reached this page. None of this has been tried on a real phone yet:
-      every number on this page so far comes from simulated sensors.</p>
+      <p><strong>What to expect on your phone.</strong> On an iPhone in Safari (tried in October 2026), the
+      accelerometer sat on a grid of exactly 1/65536&nbsp;g on all three axes. That is fixed-point storage, the same
+      kind of 2<sup>−16</sup> resolution the paper found in iPhone gyroscope data, and it is identical on every
+      iPhone, so the page labels it "format" and leaves it out of the ID. Beneath it there was no coarser grid of
+      the phone's own, and the gyroscope showed no grid at all, which fits the noise Apple added in iOS 12.2.
+      A current Chromium-based browser should show the browser's 0.1 grid, going by its source; that hasn't been
+      tried on an Android phone yet. A grid of your phone's own would mean neither defense reached this page.</p>
       <p><strong>Privacy.</strong> Everything runs on your device. The page makes no network requests, stores
       nothing, and the fingerprint exists only in this tab until you close or reload it.</p>
     </div>
@@ -577,8 +580,18 @@ const FP = (() => {
     }
     return { G, sd };
   }
-  // one three-axis sensor: S is a time-ordered list of [x, y, z]
-  function gridSensor(S) {
+  /* A step of exactly 0.1 (a browser rounding, as the W3C spec asks), or exactly 1/2^k of a unit (fixed-point
+     storage: an iPhone tested in Safari reported its accelerometer in steps of 1/65536 g), is how the numbers
+     are stored or rounded, not a calibration. Returns a label for such a step, or null. */
+  function formatGrid(step, kind) {
+    const near = (x, y) => Math.abs(x / y - 1) < 1e-6;
+    for (let d = 1; d <= 6; d++) if (near(step, 10 ** -d)) return String(+(10 ** -d).toFixed(d));
+    const bases = kind === 'acc' ? [[G0, 'g'], [1, 'm/s²']] : [[1, '°/s'], [180 / Math.PI, 'rad/s']];
+    for (const [b, u] of bases) for (let k = 0; k <= 40; k++) if (near(step, b * 2 ** -k)) return `1/${2 ** k} ${u}`;
+    return null;
+  }
+  // one three-axis sensor: S is a time-ordered list of [x, y, z]; kind is 'acc' or 'gyro'
+  function gridSensor(S, kind = 'acc') {
     const out = { ok: false, G: null };
     const levels = [0, 1, 2].map(i => new Set(S.map(s => s[i])).size);
     const floor = Math.max(...S.flat().map(ulp32), 0);
@@ -630,16 +643,16 @@ const FP = (() => {
       if (!valid) return per(i, { reason: 'nogrid' });
       if (nontriv[i] < NMIN || !R.A.some(a => a[i] !== 0) || step < 64 * floor) return per(i, { reason: 'few' });
       const mix = [0, 1, 2].filter(j => j !== i).map(j => G[i][j] / step);
-      // a browser that rounds to 0.1 (m/s² or °/s) puts every phone on the same grid: 0.1, no mixing
-      const rounded = Math.abs(step / 0.1 - Math.round(step / 0.1)) < 1e-6 && mix.every(m => Math.abs(m) < 1e-9);
-      return { ok: true, step, sd: sd[i], mix, rounded, distinct: levels[i] };
+      // a grid that is a round number of units is the number format, not the factory: the same on every phone
+      const format = mix.every(m => Math.abs(m) < 1e-6) ? formatGrid(step, kind) : null;
+      return { ok: true, step, sd: sd[i], mix, rounded: !!format, format, distinct: levels[i] };
     });
     return out;
   }
   // all six axes from a capture: accel triple and gyro triple, each from samples where all three are present
   function gridAll(S) {
-    const acc = gridSensor(S.filter(s => s[0] != null && s[1] != null && s[2] != null).map(s => [s[0], s[1], s[2]]));
-    const gy = gridSensor(S.filter(s => s[3] != null && s[4] != null && s[5] != null).map(s => [s[3], s[4], s[5]]));
+    const acc = gridSensor(S.filter(s => s[0] != null && s[1] != null && s[2] != null).map(s => [s[0], s[1], s[2]]), 'acc');
+    const gy = gridSensor(S.filter(s => s[3] != null && s[4] != null && s[5] != null).map(s => [s[3], s[4], s[5]]), 'gyro');
     const none = { ok: false, step: null, distinct: 0 };
     return [...acc.axes, ...(S.some(s => s[3] != null) ? gy.axes : [none, none, none])].map((g, i) => ({ ...g, sensor: i < 3 ? acc : gy }));
   }
@@ -709,7 +722,7 @@ const FP = (() => {
     return { marks, mag: m, smooth: sm, mean };
   }
 
-  return { G0, NOMINAL, defend, walk, countSteps, WALK_HZ, WALK_S, WALK_RATE, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridAll, gridSensor, GAMMA, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
+  return { G0, NOMINAL, defend, walk, countSteps, WALK_HZ, WALK_S, WALK_RATE, FP_BIN, FP_SPREAD, fnv64, fingerprint, compareFP, gridAll, gridSensor, formatGrid, GAMMA, AXN, poseKey, POSE_MIN, gravityFit, rng, gaussR, makePhone, phoneSample, FACES, script, isStill, STILL_WIN };
 })();
 
 /* ================================================================
@@ -988,7 +1001,7 @@ function updateGrid() {
     if (!g.distinct) { st = 'no data'; cls = ''; }
     else if (g.reason === 'few') { st = 'need more'; cls = 'fog'; }
     else if (!g.ok) { st = 'no grid'; cls = 'bad'; }
-    else if (g.rounded) { st = 'browser 0.1'; cls = 'fog'; }
+    else if (g.rounded) { st = g.format === '0.1' ? 'browser 0.1' : 'format'; cls = 'fog'; }
     else { st = 'grid'; cls = 'ok'; }
     const ppm = g.ok ? g.sd / g.step * 1e6 : null;
     const per = g.ok ? (i < 3 ? (FP.G0 / g.step).toFixed(2) : (1 / g.step).toFixed(3)) : '—';
@@ -1005,7 +1018,13 @@ function updateGrid() {
   else {
     if (DEFENSE !== 'none') msg.push(`<span class="warn">Defense on (${DEFENSE === 'noise' ? 'noise' : 'rounding to 0.1'}): see below.</span>`);
     if (found) msg.push(`<span class="ok">Grid found on ${found} of ${have} axes.</span> Those steps are this phone's calibration gains.`);
-    if (rounded) msg.push(`<span class="warn">${rounded} ax${rounded > 1 ? 'es sit' : 'is sits'} on a grid of exactly 0.1.</span> That's the browser rounding every reading, the same grid for every phone, so it identifies nothing.`);
+    const fmts = [...new Set(GRID.filter(g => g.ok && g.rounded).map(g => g.format))];
+    for (const f of fmts) {
+      const n = GRID.filter(g => g.ok && g.format === f).length;
+      msg.push(`<span class="warn">${n} ax${n > 1 ? 'es sit' : 'is sits'} on a grid of exactly ${f}.</span> ` +
+        (f === '0.1' ? "That's the browser rounding every reading, the same grid for every phone, so it identifies nothing."
+                     : "A step that round is how the numbers are stored, not a factory calibration: every phone of this kind shows the same one, so it identifies nothing."));
+    }
     if (nogrid) msg.push(`<span class="bad">${nogrid} ax${nogrid > 1 ? 'es show' : 'is shows'} no grid.</span> The changes between readings aren't whole steps, which is what noise added before the calibration looks like.`);
     if (GRID.some(g => g.reason === 'few')) msg.push('Some axes have too few changing readings yet; let the phone sit a little longer, or move it.');
   }
@@ -1077,7 +1096,10 @@ function updateFingerprint() {
     sub.textContent = `from the grid steps of ${F.axes.map(i => AXIS_NAME[i]).join(', ')}`;
   } else {
     hex.textContent = 'none yet'; hex.className = 'hex wait';
-    sub.textContent = F.axes.length < 3 ? 'Needs a grid on at least three axes.'
+    const decided = GRID.filter(g => g.ok || g.reason === 'nogrid').length;
+    sub.textContent = F.axes.length < 3 && decided >= 3 && !F.axes.length
+      ? "No grid of this phone's own on any axis, so there's nothing to fingerprint. That's the fix working."
+      : F.axes.length < 3 ? 'Needs a grid on at least three axes.'
       : `Steps known to ${(F.worst * 1e6).toPrecision(2)} ppm; needs ${FP.FP_BIN / 8 * 1e6} ppm. Turn the phone over to sharpen them.`;
   }
   $('#fp-keep').disabled = !F.ready;
@@ -1136,7 +1158,8 @@ function updateDefense() {
   if (key !== walkKey) { walkKey = key; WALK = walkFor(DEFENSE); }
   const found = GRID.filter(g => g.ok && !g.rounded).length, have = GRID.filter(g => g.distinct).length;
   const rounded = GRID.filter(g => g.ok && g.rounded).length;
-  $('#def-grid').textContent = have ? `${found} of ${have} axes` + (rounded ? ` (+${rounded} at 0.1)` : '') : '—';
+  const only01 = GRID.every(g => !(g.ok && g.rounded) || g.format === '0.1');
+  $('#def-grid').textContent = have ? `${found} of ${have} axes` + (rounded ? ` (+${rounded} ${only01 ? 'at 0.1' : 'format'})` : '') : '—';
   $('#def-grid').className = 'v' + (!have ? '' : found ? ' bad' : ' ok');
   $('#def-fp').textContent = !have ? '—' : FPRINT.ready ? fmtHex(FPRINT.hex).slice(0, 9) + '…' : 'none';
   $('#def-fp').className = 'v' + (!have ? '' : FPRINT.ready ? ' bad' : ' ok');

@@ -37,7 +37,8 @@ for (const [W, scheme] of [[1200, 'light'], [390, 'dark'], [390, 'light']]) {
     check(R.tries === 6 && R.deep && !R.blueprint, 'Try this (6), deep cut, no blueprint placeholder');
     check(R.links.includes('https://jkastl.github.io/ride-report/') && R.links.includes('https://jkastl.github.io/scroll-report/'), 'links Ride Report and Scroll Report');
     check(/Everything runs on your device/.test(R.text) && /runs on this device/.test(R.text), 'says it runs on the device');
-    check(/None of this has been tried on a real phone yet/.test(R.text), 'says real phones are untested');
+    check(/tried on one real phone, an iPhone/.test(R.text) && /hasn't been\s+tried on an Android phone yet/.test(R.text), 'says what has and hasn\'t been tried on real phones');
+    check(/1\/65536\s+g/.test(R.text) && (9.80665 / 65536).toPrecision(7) === '0.0001496376', 'quotes the iPhone accelerometer grid, 9.80665 / 65536 = 0.0001496376 m/s² as measured');
     check(/36 steps/.test(R.text) && await p.evaluate(() => FP.WALK_HZ * FP.WALK_S) === 36, 'the walk is 36 steps (1.8/s × 20 s)');
   }
   await p.close();
